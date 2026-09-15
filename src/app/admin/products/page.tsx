@@ -9,14 +9,16 @@ type P = {
   id: string;
   name: string;
   slug: string;
-  base_price: number;
-  compare_price: number | null;
-  image_url: string | null;
+  base_price?: number;
+  basePrice?: number;
+  compare_price?: number | null;
+  image_url?: string | null;
   imageUrl?: string | null;
   active: boolean;
-  featured: boolean;
-  stock: number;
-  category_name: string | null;
+  featured?: boolean;
+  stock?: number;
+  category_name?: string | null;
+  variants?: { stock: number }[];
 };
 
 export default function AdminProductsPage() {
@@ -30,7 +32,10 @@ export default function AdminProductsPage() {
     try {
       const res = await fetch(`/api/admin/products?q=${encodeURIComponent(query)}&limit=80`);
       const d = await res.json();
-      setItems(d.items || []);
+      
+      // FIX: Handle both direct Array or Object { items: [] } / { products: [] }
+      const fetchedItems = Array.isArray(d) ? d : d.items || d.products || [];
+      setItems(fetchedItems);
     } catch {
       setItems([]);
     } finally {
@@ -53,7 +58,7 @@ export default function AdminProductsPage() {
     try {
       const res = await fetch(`/api/admin/products/${id}`, { method: "DELETE" });
       const d = await res.json();
-      if (res.ok) {
+      if (res.ok || d.ok) {
         setItems((prev) => prev.filter((p) => p.id !== id));
       } else {
         alert(d.error || "Failed to delete product");
@@ -89,8 +94,14 @@ export default function AdminProductsPage() {
       ) : (
         <ul className="mt-4 grid gap-2.5 sm:grid-cols-2">
           {items.map((p) => {
-            const img = p.image_url || p.imageUrl;
+            // FIX: Gracefully handle both formats (snake_case from raw query or camelCase from ORM)
+            const img = p.imageUrl || p.image_url;
+            const price = p.basePrice ?? p.base_price ?? 0;
+            
+            // Calculate total stock from variants if direct stock is not provided
+            const stockCount = p.stock ?? (p.variants?.reduce((acc, v) => acc + (v.stock || 0), 0) ?? 0);
             const isDeleting = deletingId === p.id;
+
             return (
               <li key={p.id}>
                 <Link href={`/admin/products/${p.id}`} className="flex items-center gap-3.5 rounded-[18px] bg-white p-3.5 ring-1 ring-rosewood-100/70 hover:shadow-md transition">
@@ -104,9 +115,9 @@ export default function AdminProductsPage() {
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm font-bold">{p.name}</span>
-                    <span className="block text-xs text-ink-500">{p.category_name || "Uncategorised"} · {formatTaka(p.base_price)}</span>
-                    <span className={`mt-1 inline-block rounded-full px-2 py-0.5 text-[11px] font-bold ${p.stock <= 0 ? "bg-red-100 text-red-700" : p.stock <= 8 ? "bg-amber-100 text-amber-800" : "bg-emerald-100 text-emerald-800"}`}>
-                      {p.stock <= 0 ? "OUT OF STOCK" : `${p.stock} in stock`}
+                    <span className="block text-xs text-ink-500">{p.category_name || "Uncategorised"} · {formatTaka(price)}</span>
+                    <span className={`mt-1 inline-block rounded-full px-2 py-0.5 text-[11px] font-bold ${stockCount <= 0 ? "bg-red-100 text-red-700" : stockCount <= 8 ? "bg-amber-100 text-amber-800" : "bg-emerald-100 text-emerald-800"}`}>
+                      {stockCount <= 0 ? "OUT OF STOCK" : `${stockCount} in stock`}
                     </span>
                     {!p.active && <span className="ml-1.5 rounded-full bg-stone-200 px-2 py-0.5 text-[11px] font-bold">HIDDEN</span>}
                   </span>
