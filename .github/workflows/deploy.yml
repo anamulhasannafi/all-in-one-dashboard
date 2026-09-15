@@ -1,0 +1,50 @@
+name: Build and Deploy to cPanel
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Dependencies
+        run: npm install
+
+      - name: Build Next.js Standalone
+        run: npm run build
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+      - name: Prepare Standalone Assets
+        run: |
+          # Copy public folder into standalone directory
+          if [ -d "public" ]; then
+            cp -r public .next/standalone/
+          fi
+          # Copy static assets into standalone/.next/ directory
+          mkdir -p .next/standalone/.next
+          if [ -d ".next/static" ]; then
+            cp -r .next/static .next/standalone/.next/
+          fi
+
+      - name: Sync Files via FTP
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          local-dir: .next/standalone/
+          server-dir: all-in-one-dashboard/
+          exclude: |
+            **/.git/**
+            **/node_modules/**
+            **/.env
