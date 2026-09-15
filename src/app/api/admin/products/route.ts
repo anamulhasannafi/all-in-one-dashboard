@@ -2,11 +2,10 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/db";
 import { products, productVariants, productImages } from "@/db/schema";
-import { eq } from "drizzle-orm";
 import { requireAdmin } from "@/lib/auth";
+import { desc } from "drizzle-orm";
 
 const variantSchema = z.object({
-  id: z.string().optional(),
   size: z.string().min(1).max(30),
   color: z.string().min(1).max(60),
   colorHex: z.string().max(10).optional().nullable(),
@@ -34,60 +33,31 @@ const productSchema = z.object({
   variants: z.array(variantSchema).max(20).optional(),
 });
 
-export async function GET(
-  req: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function GET() {
   try {
-    const { id } = await params;
-
-    const productList = await db
+    const allProducts = await db
       .select()
       .from(products)
-      .where(eq(products.id, id))
-      .limit(1);
+      .orderBy(desc(products.createdAt));
 
-    if (!productList.length) {
-      return NextResponse.json({ error: "Product not found" }, { status: 404 });
-    }
-
-    const product = productList[0];
-    const variants = await db
-      .select()
-      .from(productVariants)
-      .where(eq(productVariants.productId, id));
-
-    const images = await db
-      .select()
-      .from(productImages)
-      .where(eq(productImages.productId, id));
-
-    return NextResponse.json({
-      product,
-      variants,
-      images,
-    });
+    return NextResponse.json(allProducts);
   } catch (e) {
-    console.error("Fetch product failed", e);
+    console.error("Fetch products failed", e);
     return NextResponse.json(
-      { error: "Could not load product" },
+      { error: "Could not load products" },
       { status: 500 }
     );
   }
 }
 
-export async function PUT(
-  req: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function POST(req: Request) {
   const admin = await requireAdmin();
   if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   try {
-    const { id } = await params;
     const body = await req.json();
+    const parsed = productSchema.safeParse(body);
 
-    const parsed = productSchema.partial().safeParse(body);
     if (!parsed.success) {
       return NextResponse.json(
         { error: parsed.error.issues[0]?.message },
@@ -96,32 +66,37 @@ export async function PUT(
     }
 
     const d = parsed.data;
+    const slug =
+      d.slug ||
+      d.name
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/(^-|-$)+/g, "");
 
-    await db
-      .update(products)
-      .set({
-        ...(d.name && { name: d.name.trim() }),
-        ...(d.slug && { slug: d.slug }),
-        ...(d.description !== undefined && { description: d.description }),
-        ...(d.categoryId !== undefined && { categoryId: d.categoryId }),
-        ...(d.basePrice !== undefined && { basePrice: d.basePrice }),
-        ...(d.comparePrice !== undefined && { comparePrice: d.comparePrice }),
-        ...(d.fabric !== undefined && { fabric: d.fabric }),
-        ...(d.imageUrl !== undefined && { imageUrl: d.imageUrl }),
-        ...(d.active !== undefined && { active: d.active }),
-        ...(d.featured !== undefined && { featured: d.featured }),
-        ...(d.isNew !== undefined && { isNew: d.isNew }),
-        ...(d.bestseller !== undefined && { bestseller: d.bestseller }),
+    const [newProduct] = await db
+      .insert(products)
+      .values({
+        name: d.name.trim(),
+        slug,
+        description: d.description || null,
+        categoryId: d.categoryId || null,
+        basePrice: d.basePrice,
+        comparePrice: d.comparePrice || null,
+        fabric: d.fabric || null,
+        imageUrl: d.imageUrl || null,
+        active: d.active ?? true,
+        featured: d.featured ?? false,
+        isNew: d.isNew ?? false,
+        bestseller: d.bestseller ?? false,
       })
-      .where(eq(products.id, id));
+      .returning();
 
     if (d.images && Array.isArray(d.images)) {
-      await db.delete(productImages).where(eq(productImages.productId, id));
       for (let i = 0; i < d.images.length; i++) {
         const imgUrl = d.images[i];
         if (imgUrl) {
           await db.insert(productImages).values({
-            productId: id,
+            productId: newProduct.id,
             url: imgUrl,
             alt: `Product Image ${i + 1}`,
             sortOrder: i + 1,
@@ -131,11 +106,10 @@ export async function PUT(
     }
 
     if (d.variants && Array.isArray(d.variants)) {
-      await db.delete(productVariants).where(eq(productVariants.productId, id));
       for (let i = 0; i < d.variants.length; i++) {
         const v = d.variants[i];
         await db.insert(productVariants).values({
-          productId: id,
+          productId: newProduct.id,
           size: v.size,
           color: v.color,
           colorHex: v.colorHex || null,
@@ -148,35 +122,11 @@ export async function PUT(
       }
     }
 
-    return NextResponse.json({ ok: true, message: "Product updated successfully" });
+    return NextResponse.json({ ok: true, product: newProduct });
   } catch (e) {
-    console.error("Product update failed", e);
+    console.error("Create product failed", e);
     return NextResponse.json(
-      { error: "Could not update product" },
-      { status: 500 }
-    );
-  }
-}
-
-export async function DELETE(
-  req: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const admin = await requireAdmin();
-  if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  try {
-    const { id } = await params;
-
-    await db.delete(productVariants).where(eq(productVariants.productId, id));
-    await db.delete(productImages).where(eq(productImages.productId, id));
-    await db.delete(products).where(eq(products.id, id));
-
-    return NextResponse.json({ ok: true, message: "Product deleted successfully" });
-  } catch (e) {
-    console.error("Product deletion failed", e);
-    return NextResponse.json(
-      { error: "Could not delete product" },
+      { error: "Could not create product" },
       { status: 500 }
     );
   }
