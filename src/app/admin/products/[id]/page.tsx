@@ -56,24 +56,37 @@ export default function AdminEditProductPage({ params }: { params: Promise<{ id:
         const prodData = await prodRes.json();
         const catData = await catRes.json();
 
-        if (catData.items) setCategoriesList(catData.items);
+        if (catData.items) {
+          setCategoriesList(catData.items);
+        } else if (Array.isArray(catData)) {
+          setCategoriesList(catData);
+        } else if (catData.categories) {
+          setCategoriesList(catData.categories);
+        }
 
-        const p = prodData.product;
+        // Support both prodData.product and direct prodData object
+        const p = prodData.product || prodData;
         if (p) {
           setName(p.name || "");
           setSlug(p.slug || "");
           setDescription(p.description || "");
-          setCategoryId(p.categoryId || null);
-          setBasePrice(p.basePrice ? String(p.basePrice) : "");
-          setComparePrice(p.comparePrice ? String(p.comparePrice) : "");
+          setCategoryId(p.categoryId || p.category_id || null);
+
+          const bp = p.basePrice ?? p.base_price;
+          setBasePrice(bp !== undefined && bp !== null ? String(bp) : "");
+
+          const cp = p.comparePrice ?? p.compare_price;
+          setComparePrice(cp !== undefined && cp !== null ? String(cp) : "");
+
           setFabric(p.fabric || "");
-          setImageUrl(p.imageUrl || "");
+          setImageUrl(p.imageUrl || p.image_url || "");
           setActive(p.active ?? true);
           setFeatured(p.featured ?? false);
-          setIsNew(p.isNew ?? false);
+          setIsNew(p.isNew ?? p.is_new ?? false);
           setBestseller(p.bestseller ?? false);
-          setVariants(prodData.variants || []);
-          setImages(prodData.images || []);
+
+          setVariants(prodData.variants || p.variants || []);
+          setImages(prodData.images || p.images || []);
         }
       } catch (e) {
         console.error("Failed to load product", e);
@@ -133,29 +146,38 @@ export default function AdminEditProductPage({ params }: { params: Promise<{ id:
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
+
+    const finalSlug = slug || name.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+
     try {
+      const payload = {
+        name,
+        slug: finalSlug,
+        description,
+        categoryId: categoryId || null,
+        category_id: categoryId || null,
+        basePrice: Number(basePrice) || 0,
+        base_price: Number(basePrice) || 0,
+        comparePrice: comparePrice ? Number(comparePrice) : null,
+        compare_price: comparePrice ? Number(comparePrice) : null,
+        fabric,
+        imageUrl,
+        image_url: imageUrl,
+        active,
+        featured,
+        isNew,
+        bestseller,
+        variants,
+        images,
+      };
+
       const res = await fetch(`/api/admin/products/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name,
-          slug,
-          description,
-          categoryId: categoryId || null,
-          basePrice: Number(basePrice) || 0,
-          comparePrice: comparePrice ? Number(comparePrice) : null,
-          fabric,
-          imageUrl,
-          active,
-          featured,
-          isNew,
-          bestseller,
-          variants,
-          images,
-        }),
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
-      if (res.ok) {
+      if (res.ok || data.ok) {
         alert("Product updated successfully!");
         router.push("/admin/products");
       } else {
