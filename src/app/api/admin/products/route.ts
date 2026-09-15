@@ -40,7 +40,19 @@ export async function GET() {
       .from(products)
       .orderBy(desc(products.createdAt));
 
-    return NextResponse.json(allProducts);
+    const allVariants = await db.select().from(productVariants);
+    const allImages = await db.select().from(productImages);
+
+    const productsWithDetails = allProducts.map((p) => ({
+      ...p,
+      variants: allVariants.filter((v) => v.productId === p.id),
+      images: allImages.filter((img) => img.productId === p.id),
+    }));
+
+    return NextResponse.json({
+      ok: true,
+      products: productsWithDetails,
+    });
   } catch (e) {
     console.error("Fetch products failed", e);
     return NextResponse.json(
