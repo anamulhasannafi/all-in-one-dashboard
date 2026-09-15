@@ -3,7 +3,6 @@ import { z } from "zod";
 import { db } from "@/db";
 import { products, productVariants, productImages } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth";
-import { desc } from "drizzle-orm";
 
 const variantSchema = z.object({
   size: z.string().min(1).max(30),
@@ -35,24 +34,34 @@ const productSchema = z.object({
 
 export async function GET() {
   try {
-    const allProducts = await db
-      .select()
-      .from(products)
-      .orderBy(desc(products.createdAt));
+    const allProducts = await db.select().from(products);
 
-    const allVariants = await db.select().from(productVariants);
-    const allImages = await db.select().from(productImages);
+    let allVariants: any[] = [];
+    let allImages: any[] = [];
 
-    const productsWithDetails = allProducts.map((p) => ({
+    try {
+      allVariants = await db.select().from(productVariants);
+    } catch (e) {
+      console.error("Variants query error:", e);
+    }
+
+    try {
+      allImages = await db.select().from(productImages);
+    } catch (e) {
+      console.error("Images query error:", e);
+    }
+
+    const productsWithDetails = allProducts.map((p: any) => ({
       ...p,
-      variants: allVariants.filter((v) => v.productId === p.id),
-      images: allImages.filter((img) => img.productId === p.id),
+      variants: allVariants.filter(
+        (v: any) => v && (v.productId === p.id || v.product_id === p.id)
+      ),
+      images: allImages.filter(
+        (img: any) => img && (img.productId === p.id || img.product_id === p.id)
+      ),
     }));
 
-    return NextResponse.json({
-      ok: true,
-      products: productsWithDetails,
-    });
+    return NextResponse.json(productsWithDetails);
   } catch (e) {
     console.error("Fetch products failed", e);
     return NextResponse.json(
