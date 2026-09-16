@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState, use } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useRouter, useParams } from "next/navigation";
 import { Loader2, Trash2, Plus } from "@/components/icons";
 
 type Variant = {
@@ -21,13 +21,14 @@ type ProdImage = {
   sortOrder?: number;
 };
 
-export default function AdminEditProductPage({ params }: { params: Promise<{ id: string }> }) {
-  const resolvedParams = use(params);
-  const id = resolvedParams?.id;
+export default function AdminEditProductPage() {
+  const params = useParams();
+  const id = params?.id as string;
   const router = useRouter();
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [uploadingMain, setUploadingMain] = useState(false);
   const [uploadingGallery, setUploadingGallery] = useState(false);
 
@@ -48,24 +49,36 @@ export default function AdminEditProductPage({ params }: { params: Promise<{ id:
   const [categoriesList, setCategoriesList] = useState<{ id: string; name: string }[]>([]);
 
   useEffect(() => {
-    async function init() {
-      if (!id) return;
+    if (!id) return;
+
+    async function loadData() {
+      setLoading(true);
+
+      // ১. ক্যাটাগরি ডাটা ফেচ
       try {
-        setLoading(true);
-        const [prodRes, catRes] = await Promise.all([
-          fetch(`/api/admin/products/${id}`),
-          fetch("/api/admin/categories")
-        ]);
-        
-        const prodData = await prodRes.json();
-        const catData = await catRes.json();
+        let catRes = await fetch("/api/admin/categories");
+        if (!catRes.ok) catRes = await fetch("/api/categories");
+        if (catRes.ok) {
+          const catData = await catRes.json();
+          const list = catData.categories || catData.items || (Array.isArray(catData) ? catData : []);
+          setCategoriesList(list);
+        }
+      } catch (err) {
+        console.error("Category load error:", err);
+      }
 
-        if (catData.items) setCategoriesList(catData.items);
-        else if (Array.isArray(catData)) setCategoriesList(catData);
-        else if (catData.categories) setCategoriesList(catData.categories);
+      // ২. প্রোডাক্টের ডাটা ফেচ
+      try {
+        const res = await fetch(`/api/admin/products/${id}`);
+        const data = await res.json();
 
-        const p = prodData.product || prodData;
-        if (p && !prodData.error) {
+        if (!res.ok) {
+          alert(`Error loading product: ${data.error || res.statusText}`);
+          return;
+        }
+
+        const p = data.product || data.data || data;
+        if (p) {
           setName(p.name || "");
           setSlug(p.slug || "");
           setDescription(p.description || "");
@@ -84,24 +97,38 @@ export default function AdminEditProductPage({ params }: { params: Promise<{ id:
           setIsNew(p.isNew ?? p.is_new ?? false);
           setBestseller(p.bestseller ?? false);
 
-          const rawImages = prodData.images || p.images || [];
-          setImages(rawImages.map((img: { url?: string; imageUrl?: string; id?: string }) => ({
-            id: img.id,
-            imageUrl: img.imageUrl || img.url || ""
-          })));
+          const rawImages = data.images || p.images || [];
+          setImages(
+            rawImages.map((img: any) => ({
+              id: img.id,
+              imageUrl: img.imageUrl || img.url || "",
+              sortOrder: img.sortOrder ?? 0,
+            }))
+          );
 
-          setVariants(prodData.variants || p.variants || []);
-        } else {
-          alert("Product data could not be loaded: " + (prodData.error || "Unknown error"));
+          const rawVariants = data.variants || p.variants || [];
+          setVariants(
+            rawVariants.map((v: any) => ({
+              id: v.id,
+              size: v.size || "",
+              color: v.color || "",
+              colorHex: v.colorHex || null,
+              sku: v.sku || null,
+              price: v.price !== undefined && v.price !== null ? Number(v.price) : null,
+              stock: Number(v.stock || 0),
+              imageUrl: v.imageUrl || null,
+            }))
+          );
         }
-      } catch (e) {
-        console.error("Failed to load product", e);
+      } catch (err) {
+        console.error("Product load error:", err);
+        alert("প্রোডাক্টের ডাটা লোড করতে সমস্যা হয়েছে।");
       } finally {
         setLoading(false);
       }
     }
 
-    init();
+    loadData();
   }, [id]);
 
   const handleMainImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -134,7 +161,7 @@ export default function AdminEditProductPage({ params }: { params: Promise<{ id:
         const res = await fetch("/api/upload", { method: "POST", body: formData });
         const data = await res.json();
         if (data.url) {
-          newImages.push({ imageUrl: data.url, sortOrder: newImages.length });
+          newImages.push({ imageUrl: data.url, sortOrder: newImages.length + 1 });
         }
       }
       setImages(newImages);
@@ -149,7 +176,7 @@ export default function AdminEditProductPage({ params }: { params: Promise<{ id:
     e.preventDefault();
     setSaving(true);
 
-    const finalSlug = slug || name.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+    const finalSlug = slug || name.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
 
     try {
       const payload = {
@@ -157,14 +184,10 @@ export default function AdminEditProductPage({ params }: { params: Promise<{ id:
         slug: finalSlug,
         description,
         categoryId: categoryId || null,
-        category_id: categoryId || null,
         basePrice: Number(basePrice) || 0,
-        base_price: Number(basePrice) || 0,
         comparePrice: comparePrice ? Number(comparePrice) : null,
-        compare_price: comparePrice ? Number(comparePrice) : null,
         fabric,
         imageUrl,
-        image_url: imageUrl,
         active,
         featured,
         isNew,
@@ -179,6 +202,7 @@ export default function AdminEditProductPage({ params }: { params: Promise<{ id:
         body: JSON.stringify(payload),
       });
       const data = await res.json();
+
       if (res.ok || data.ok) {
         alert("Product updated successfully!");
         router.push("/admin/products");
@@ -187,19 +211,60 @@ export default function AdminEditProductPage({ params }: { params: Promise<{ id:
         alert(data.error || "Failed to update product");
       }
     } catch {
-      alert("Something went wrong");
+      alert("Something went wrong while updating");
     } finally {
       setSaving(false);
     }
   };
 
+  const handleDelete = async () => {
+    if (!confirm("আপনি কি নিশ্চিত যে এই প্রোডাক্টটি স্থায়ীভাবে ডিলিট করতে চান?")) return;
+    setDeleting(true);
+
+    try {
+      const res = await fetch(`/api/admin/products/${id}`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+
+      if (res.ok || data.ok) {
+        alert("প্রোডাক্টটি সফলভাবে ডিলিট করা হয়েছে।");
+        router.push("/admin/products");
+        router.refresh();
+      } else {
+        alert(data.error || "প্রোডাক্ট ডিলিট করতে সমস্যা হয়েছে।");
+      }
+    } catch {
+      alert("ডিলিট করার সময় সমস্যা হয়েছে।");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   if (loading) {
-    return <div className="grid place-items-center py-24"><Loader2 className="animate-spin text-ink-500" size={32} /></div>;
+    return (
+      <div className="grid place-items-center py-24">
+        <Loader2 className="animate-spin text-rosewood-800" size={36} />
+        <p className="mt-3 text-sm font-medium text-ink-600">Loading Product Details...</p>
+      </div>
+    );
   }
 
   return (
     <div className="max-w-4xl mx-auto pb-16">
-      <h1 className="font-display text-3xl sm:text-4xl text-rosewood-950 mb-6">Edit Product</h1>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="font-display text-3xl sm:text-4xl text-rosewood-950">Edit Product</h1>
+        <button
+          type="button"
+          onClick={handleDelete}
+          disabled={deleting}
+          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-red-50 text-red-600 font-bold text-xs hover:bg-red-600 hover:text-white transition"
+        >
+          {deleting ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={15} />}
+          Delete Product
+        </button>
+      </div>
+
       <form onSubmit={handleSubmit} className="bg-white rounded-3xl p-6 sm:p-8 ring-1 ring-rosewood-100/70 space-y-6">
         <div>
           <label className="block text-sm font-bold text-ink-800 mb-2">Product Name</label>
@@ -222,7 +287,9 @@ export default function AdminEditProductPage({ params }: { params: Promise<{ id:
             >
               <option value="">Select Category</option>
               {categoriesList.map((c) => (
-                <option key={c.id} value={c.id}>{c.name}</option>
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
               ))}
             </select>
           </div>
@@ -263,11 +330,11 @@ export default function AdminEditProductPage({ params }: { params: Promise<{ id:
           <label className="block text-sm font-bold text-ink-800 mb-2">Main Product Image</label>
           {imageUrl && (
             <div className="mb-3">
-              <img src={imageUrl} alt="Preview" className="h-20 w-20 rounded-xl object-cover ring-1 ring-rosewood-100 bg-cream-100 shrink-0" />
+              <img src={imageUrl} alt="Main Preview" className="h-28 w-28 rounded-2xl object-cover ring-1 ring-rosewood-100 bg-cream-100" />
             </div>
           )}
           <div className="flex items-center gap-3">
-            <label className="cursor-pointer inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-rosewood-800 text-white text-xs font-bold hover:bg-rosewood-900 transition">
+            <label className="cursor-pointer inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-rosewood-800 text-white text-xs font-bold hover:bg-rosewood-900 transition">
               {uploadingMain ? <Loader2 size={15} className="animate-spin" /> : null}
               Upload New Image
               <input type="file" accept="image/*" onChange={handleMainImageUpload} className="hidden" />
@@ -282,7 +349,7 @@ export default function AdminEditProductPage({ params }: { params: Promise<{ id:
               <h3 className="font-bold text-base text-rosewood-950">Additional Images (Gallery)</h3>
               <p className="text-xs text-ink-500">Upload multiple photos for product showcase</p>
             </div>
-            <label className="cursor-pointer inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-cream-50 text-rosewood-900 text-xs font-bold hover:bg-rosewood-200 transition">
+            <label className="cursor-pointer inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-cream-50 text-rosewood-900 text-xs font-bold hover:bg-rosewood-200 transition">
               {uploadingGallery ? <Loader2 size={15} className="animate-spin" /> : <Plus size={15} />}
               Add More Images
               <input type="file" accept="image/*" multiple onChange={handleGalleryUpload} className="hidden" />
@@ -385,7 +452,7 @@ export default function AdminEditProductPage({ params }: { params: Promise<{ id:
           <button
             type="button"
             onClick={() => setVariants([...variants, { size: "Free", color: "Default", stock: 10 }])}
-            className="mt-3 px-4 py-2 rounded-xl bg-rosewood-100 text-rosewood-900 text-xs font-bold hover:bg-rosewood-200 transition"
+            className="mt-3 px-4 py-2.5 rounded-xl bg-rosewood-100 text-rosewood-900 text-xs font-bold hover:bg-rosewood-200 transition"
           >
             + Add Variant
           </button>
