@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { db } from "@/db";
 import { heroSettings, products, categories, siteSettings } from "@/db/schema";
-import { eq, desc, sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import HeroVideo from "@/components/HeroVideo";
 import ProductCard from "@/components/ProductCard";
 import Reveal from "@/components/Reveal";
@@ -15,25 +15,47 @@ async function getData() {
   try {
     const [hero] = await db.select().from(heroSettings).limit(1);
     const [site] = await db.select().from(siteSettings).limit(1);
-    const cats = await db.select().from(categories).where(eq(categories.active, true)).orderBy(categories.sortOrder).limit(8);
+    const rawCats = await db
+      .select()
+      .from(categories)
+      .where(eq(categories.active, true))
+      .orderBy(categories.sortOrder)
+      .limit(8);
+
+    // যদি ক্যাটাগরিতে সরাসরি ছবি না থাকে, তবে ক্যাটাগরির প্রোডাক্ট থেকে অটো ছবি নেওয়া হবে
+    const cats = await Promise.all(
+      rawCats.map(async (c) => {
+        if (c.imageUrl) return c;
+        const [prod] = await db
+          .select({ imageUrl: products.imageUrl })
+          .from(products)
+          .where(eq(products.categoryId, c.id))
+          .limit(1);
+        return { ...c, imageUrl: prod?.imageUrl || null };
+      })
+    );
+
     const feat = await db.execute(sql`
       SELECT p.*, c.name as category_name,
         (SELECT MIN(v.price) FROM product_variants v WHERE v.product_id=p.id AND v.active=true AND v.price IS NOT NULL) as min_variant_price,
         (SELECT COALESCE(SUM(v.stock),0) FROM product_variants v WHERE v.product_id=p.id AND v.active=true) as variant_stock
       FROM products p LEFT JOIN categories c ON c.id=p.category_id
       WHERE p.active=true AND p.featured=true ORDER BY p.created_at DESC LIMIT 8`);
+
     const fresh = await db.execute(sql`
       SELECT p.*, c.name as category_name,
         (SELECT MIN(v.price) FROM product_variants v WHERE v.product_id=p.id AND v.active=true AND v.price IS NOT NULL) as min_variant_price,
         (SELECT COALESCE(SUM(v.stock),0) FROM product_variants v WHERE v.product_id=p.id AND v.active=true) as variant_stock
       FROM products p LEFT JOIN categories c ON c.id=p.category_id
       WHERE p.active=true ORDER BY p.created_at DESC LIMIT 8`);
+
     const best = await db.execute(sql`
       SELECT p.*, c.name as category_name,
         (SELECT MIN(v.price) FROM product_variants v WHERE v.product_id=p.id AND v.active=true AND v.price IS NOT NULL) as min_variant_price,
         (SELECT COALESCE(SUM(v.stock),0) FROM product_variants v WHERE v.product_id=p.id AND v.active=true) as variant_stock
       FROM products p LEFT JOIN categories c ON c.id=p.category_id
       WHERE p.active=true AND p.bestseller=true ORDER BY p.total_sold DESC LIMIT 4`);
+
     return {
       hero: hero ?? null,
       cats,
@@ -146,7 +168,7 @@ export default async function HomePage() {
           {cats.map((c, i) => (
             <Reveal key={c.id} delay={i * 70}>
               <Link
-                href={`/shop?category=${c.slug}`}
+                href={`/shop?category=${encodeURIComponent(c.slug)}`}
                 className="img-zoom card-lift group relative block overflow-hidden rounded-[20px] bg-white ring-1 ring-rosewood-100/70"
               >
                 <span className="block aspect-[4/5] overflow-hidden bg-cream-100">
