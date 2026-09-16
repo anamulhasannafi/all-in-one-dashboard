@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db";
-import { products, categories, productVariants } from "@/db/schema";
+import { products, categories } from "@/db/schema";
 import { and, asc, desc, eq, ilike, or, sql, gte, lte } from "drizzle-orm";
+
+export const dynamic = "force-dynamic";
 
 export async function GET(req: Request) {
   try {
@@ -17,38 +19,28 @@ export async function GET(req: Request) {
     const limit = Math.min(60, Math.max(1, Number(url.searchParams.get("limit") || 24)));
     const offset = Math.max(0, Number(url.searchParams.get("offset") || 0));
 
+    // শুধুমাত্র অ্যাকটিভ প্রোডাক্টগুলো দেখানোর কন্ডিশন
     const conditions = [eq(products.active, true)];
 
     if (q) {
       conditions.push(ilike(products.name, `%${q}%`));
     }
 
+    // 🔴 ক্যাটাগরি ম্যাচিংয়ের মূল ফিক্স 🔴
+    // এখানে ID এর বদলে সরাসরি Category Name এবং Slug দিয়ে ম্যাচ করানো হয়েছে
     if (category && category.toLowerCase() !== "all") {
-      const catClean = category.toLowerCase();
-      const catWithSpaces = catClean.replace(/-/g, " ");
-      const catWithHyphens = catClean.replace(/\s+/g, "-");
+      const decodedCat = decodeURIComponent(category).trim();
+      const slugified = decodedCat.toLowerCase().replace(/\s+/g, "-");
+      const unslugified = decodedCat.toLowerCase().replace(/-/g, " ");
 
-      // স্লাগ (slug), আইডি (id) অথবা ক্যাটাগরির নামের (name) সাথে কেস-ইনসেনসিটিভভাবে ম্যাচ করানো
-      const foundCat = await db
-        .select({ id: categories.id })
-        .from(categories)
-        .where(
-          or(
-            ilike(categories.slug, catClean),
-            ilike(categories.slug, catWithHyphens),
-            ilike(categories.name, catClean),
-            ilike(categories.name, catWithSpaces),
-            eq(categories.id, category)
-          )
+      conditions.push(
+        or(
+          ilike(categories.slug, slugified),
+          ilike(categories.slug, decodedCat),
+          ilike(categories.name, unslugified),
+          ilike(categories.name, decodedCat)
         )
-        .limit(1);
-
-      if (foundCat.length > 0) {
-        conditions.push(eq(products.categoryId, foundCat[0].id));
-      } else {
-        // যদি সরাসরি ক্যাটাগরি টেবিলে স্লাগ না মেলে, তবে প্রোডাক্টের নিজের ক্যাটাগরি আইডিতে ম্যাচ করানোর চেষ্টা করবে
-        conditions.push(eq(products.categoryId, category));
-      }
+      );
     }
 
     if (featured === "1") conditions.push(eq(products.featured, true));
@@ -62,6 +54,7 @@ export async function GET(req: Request) {
     if (sort === "price-desc") orderByClause = desc(products.basePrice);
     if (sort === "popular") orderByClause = desc(products.totalSold);
 
+    // প্রোডাক্টস এবং ক্যাটাগরিজ টেবিল জয়েন করে ডেটা আনা হচ্ছে
     const items = await db
       .select({
         id: products.id,
@@ -101,7 +94,8 @@ export async function GET(req: Request) {
 
     return NextResponse.json({ items: formattedItems, total });
   } catch (e) {
-    console.error("products list failed", e);
-    return NextResponse.json({ error: "Could not load products" }, { status: 500 });
+    console.error("products API error:", e);
+    // এরর হলেও সাইট ক্র্যাশ করবে না, ফাঁকা লিস্ট রিটার্ন করবে
+    return NextResponse.json({ items: [], total: 0, error: "Could not load products" }, { status: 200 });
   }
 }
