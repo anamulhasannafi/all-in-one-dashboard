@@ -22,8 +22,10 @@ type ProdImage = {
 };
 
 export default function AdminEditProductPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = use(params);
+  const resolvedParams = use(params);
+  const id = resolvedParams?.id;
   const router = useRouter();
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploadingMain, setUploadingMain] = useState(false);
@@ -47,7 +49,9 @@ export default function AdminEditProductPage({ params }: { params: Promise<{ id:
 
   useEffect(() => {
     async function init() {
+      if (!id) return;
       try {
+        setLoading(true);
         const [prodRes, catRes] = await Promise.all([
           fetch(`/api/admin/products/${id}`),
           fetch("/api/admin/categories")
@@ -56,17 +60,12 @@ export default function AdminEditProductPage({ params }: { params: Promise<{ id:
         const prodData = await prodRes.json();
         const catData = await catRes.json();
 
-        if (catData.items) {
-          setCategoriesList(catData.items);
-        } else if (Array.isArray(catData)) {
-          setCategoriesList(catData);
-        } else if (catData.categories) {
-          setCategoriesList(catData.categories);
-        }
+        if (catData.items) setCategoriesList(catData.items);
+        else if (Array.isArray(catData)) setCategoriesList(catData);
+        else if (catData.categories) setCategoriesList(catData.categories);
 
-        // Support both prodData.product and direct prodData object
         const p = prodData.product || prodData;
-        if (p) {
+        if (p && !prodData.error) {
           setName(p.name || "");
           setSlug(p.slug || "");
           setDescription(p.description || "");
@@ -85,8 +84,15 @@ export default function AdminEditProductPage({ params }: { params: Promise<{ id:
           setIsNew(p.isNew ?? p.is_new ?? false);
           setBestseller(p.bestseller ?? false);
 
+          const rawImages = prodData.images || p.images || [];
+          setImages(rawImages.map((img: { url?: string; imageUrl?: string; id?: string }) => ({
+            id: img.id,
+            imageUrl: img.imageUrl || img.url || ""
+          })));
+
           setVariants(prodData.variants || p.variants || []);
-          setImages(prodData.images || p.images || []);
+        } else {
+          alert("Product data could not be loaded: " + (prodData.error || "Unknown error"));
         }
       } catch (e) {
         console.error("Failed to load product", e);
@@ -94,9 +100,8 @@ export default function AdminEditProductPage({ params }: { params: Promise<{ id:
         setLoading(false);
       }
     }
-    if (id) {
-      init();
-    }
+
+    init();
   }, [id]);
 
   const handleMainImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -108,11 +113,8 @@ export default function AdminEditProductPage({ params }: { params: Promise<{ id:
     try {
       const res = await fetch("/api/upload", { method: "POST", body: formData });
       const data = await res.json();
-      if (data.url) {
-        setImageUrl(data.url);
-      } else {
-        alert(data.error || "Image upload failed");
-      }
+      if (data.url) setImageUrl(data.url);
+      else alert(data.error || "Image upload failed");
     } catch {
       alert("Image upload error");
     } finally {
@@ -180,6 +182,7 @@ export default function AdminEditProductPage({ params }: { params: Promise<{ id:
       if (res.ok || data.ok) {
         alert("Product updated successfully!");
         router.push("/admin/products");
+        router.refresh();
       } else {
         alert(data.error || "Failed to update product");
       }

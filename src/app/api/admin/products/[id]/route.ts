@@ -27,10 +27,14 @@ const productUpdateSchema = z.object({
   slug: z.string().min(2).max(220).optional(),
   description: z.string().max(5000).optional().nullable(),
   categoryId: z.string().uuid().nullable().optional(),
-  basePrice: z.number().int().min(1),
+  category_id: z.string().uuid().nullable().optional(),
+  basePrice: z.number().int().min(0),
+  base_price: z.number().int().min(0).optional(),
   comparePrice: z.number().int().min(0).nullable().optional(),
+  compare_price: z.number().int().min(0).nullable().optional(),
   fabric: z.string().max(120).optional().nullable(),
   imageUrl: z.string().max(500).optional().nullable(),
+  image_url: z.string().max(500).optional().nullable(),
   active: z.boolean().optional(),
   featured: z.boolean().optional(),
   isNew: z.boolean().optional(),
@@ -39,32 +43,42 @@ const productUpdateSchema = z.object({
   images: z.array(imageSchema).optional(),
 });
 
-// ১. GET — প্রোডাক্ট এডিট পেজে আগের ছবি ও সব ডাটা শো করানোর জন্য
-export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> }) {
+// GET — প্রোডাক্টের ডাটা এডিট ফর্মে পাঠানোর জন্য
+export async function GET(
+  _req: Request,
+  context: { params: Promise<{ id: string }> }
+) {
   const admin = await requireAdmin();
   if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const { id } = await ctx.params;
+
+  const { id } = await context.params;
 
   try {
     const productRows = await db.select().from(products).where(eq(products.id, id)).limit(1);
-    if (!productRows[0]) return NextResponse.json({ error: "Product not found" }, { status: 404 });
+    if (!productRows || productRows.length === 0) {
+      return NextResponse.json({ error: "Product not found" }, { status: 404 });
+    }
 
     const product = productRows[0];
     const images = await db.select().from(productImages).where(eq(productImages.productId, id));
     const variants = await db.select().from(productVariants).where(eq(productVariants.productId, id));
 
-    return NextResponse.json({ product, images, variants });
+    return NextResponse.json({ ok: true, product, images, variants });
   } catch (e) {
-    console.error("Failed to fetch product", e);
-    return NextResponse.json({ error: "Failed to fetch product" }, { status: 500 });
+    console.error("Failed to fetch product:", e);
+    return NextResponse.json({ error: "Failed to fetch product details" }, { status: 500 });
   }
 }
 
-// ২. PUT — প্রোডাক্ট এডিট করে Save Changes দিলে আপডেট করার জন্য
-export async function PUT(req: Request, ctx: { params: Promise<{ id: string }> }) {
+// PUT — এডিট করা তথ্য ডাটাবেজে সেভ করার জন্য
+export async function PUT(
+  req: Request,
+  context: { params: Promise<{ id: string }> }
+) {
   const admin = await requireAdmin();
   if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const { id } = await ctx.params;
+
+  const { id } = await context.params;
 
   try {
     const body = await req.json();
@@ -75,6 +89,10 @@ export async function PUT(req: Request, ctx: { params: Promise<{ id: string }> }
     }
 
     const d = parsed.data;
+    const catId = d.categoryId || d.category_id || null;
+    const bPrice = d.basePrice ?? d.base_price ?? 0;
+    const cPrice = d.comparePrice ?? d.compare_price ?? null;
+    const imgUrl = d.imageUrl || d.image_url || null;
 
     await db.transaction(async (tx) => {
       await tx
@@ -83,11 +101,11 @@ export async function PUT(req: Request, ctx: { params: Promise<{ id: string }> }
           name: d.name.trim(),
           slug: d.slug || d.name.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
           description: d.description || null,
-          categoryId: d.categoryId || null,
-          basePrice: d.basePrice,
-          comparePrice: d.comparePrice || null,
+          categoryId: catId,
+          basePrice: bPrice,
+          comparePrice: cPrice,
           fabric: d.fabric || null,
-          imageUrl: d.imageUrl || null,
+          imageUrl: imgUrl,
           active: d.active ?? true,
           featured: d.featured ?? false,
           isNew: d.isNew ?? false,
@@ -129,16 +147,20 @@ export async function PUT(req: Request, ctx: { params: Promise<{ id: string }> }
 
     return NextResponse.json({ ok: true, message: "Product updated successfully" });
   } catch (e) {
-    console.error("Failed to update product", e);
+    console.error("Failed to update product:", e);
     return NextResponse.json({ error: "Failed to update product" }, { status: 500 });
   }
 }
 
-// ৩. DELETE — প্রোডাক্ট স্থায়ীভাবে ডিলিট করার জন্য
-export async function DELETE(_req: Request, ctx: { params: Promise<{ id: string }> }) {
+// DELETE — প্রোডাক্ট ডিলিট করার জন্য
+export async function DELETE(
+  _req: Request,
+  context: { params: Promise<{ id: string }> }
+) {
   const admin = await requireAdmin();
   if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const { id } = await ctx.params;
+
+  const { id } = await context.params;
 
   try {
     await db.transaction(async (tx) => {
@@ -149,7 +171,7 @@ export async function DELETE(_req: Request, ctx: { params: Promise<{ id: string 
 
     return NextResponse.json({ ok: true, message: "Product deleted permanently" });
   } catch (e) {
-    console.error("Failed to delete product", e);
+    console.error("Failed to delete product:", e);
     return NextResponse.json({ error: "Failed to delete product" }, { status: 500 });
   }
 }
