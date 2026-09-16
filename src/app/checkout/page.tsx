@@ -16,14 +16,6 @@ import {
   ChevronLeft,
 } from "@/components/icons";
 
-// Global Window interface for GTM & Meta Pixel
-declare global {
-  interface Window {
-    dataLayer?: Record<string, any>[];
-    fbq?: (...args: any[]) => void;
-  }
-}
-
 type Zone = {
   id: string;
   name: string;
@@ -195,8 +187,9 @@ export default function CheckoutPage() {
       }));
 
       // 1. GA4 / GTM DataLayer
-      window.dataLayer = window.dataLayer || [];
-      window.dataLayer.push({
+      const win = window as Window & { dataLayer?: Record<string, any>[]; fbq?: (...args: any[]) => void };
+      win.dataLayer = win.dataLayer || [];
+      win.dataLayer.push({
         event: "begin_checkout",
         ecommerce: {
           currency: "BDT",
@@ -207,8 +200,8 @@ export default function CheckoutPage() {
       });
 
       // 2. Meta Pixel
-      if (typeof window.fbq === "function") {
-        window.fbq("track", "InitiateCheckout", {
+      if (typeof win.fbq === "function") {
+        win.fbq("track", "InitiateCheckout", {
           content_type: "product",
           contents: lines.map((l) => ({
             id: l.productId,
@@ -278,7 +271,6 @@ export default function CheckoutPage() {
     }
     setPlacing(true);
     try {
-      // remember info (never card data)
       localStorage.setItem("sushre_checkout_v1", JSON.stringify({ name, phone, email, address, city, area, zoneId }));
 
       const res = await fetch("/api/orders", {
@@ -329,9 +321,9 @@ export default function CheckoutPage() {
         index: index + 1,
       }));
 
-      // 1. GA4 / GTM DataLayer Purchase Event
-      window.dataLayer = window.dataLayer || [];
-      window.dataLayer.push({
+      const win = window as Window & { dataLayer?: Record<string, any>[]; fbq?: (...args: any[]) => void };
+      win.dataLayer = win.dataLayer || [];
+      win.dataLayer.push({
         event: "purchase",
         ecommerce: {
           transaction_id: orderCode,
@@ -355,9 +347,8 @@ export default function CheckoutPage() {
         },
       });
 
-      // 2. Meta Pixel Purchase Event
-      if (typeof window.fbq === "function") {
-        window.fbq("track", "Purchase", {
+      if (typeof win.fbq === "function") {
+        win.fbq("track", "Purchase", {
           value: total,
           currency: "BDT",
           content_type: "product",
@@ -371,7 +362,6 @@ export default function CheckoutPage() {
       }
 
       clear();
-      // fresh key for any future order
       idemKey.current =
         typeof crypto !== "undefined" && "randomUUID" in crypto
           ? crypto.randomUUID()
@@ -379,7 +369,7 @@ export default function CheckoutPage() {
 
       router.push(`/order-success?code=${encodeURIComponent(orderCode)}`);
     } catch {
-      setSubmitError("Network error. Your order was NOT placed — please check your connection and tap Place Order again (you won't be double-charged).");
+      setSubmitError("Network error. Your order was NOT placed — please check your connection and tap Place Order again.");
     } finally {
       setPlacing(false);
     }
@@ -417,7 +407,6 @@ export default function CheckoutPage() {
       ) : (
         <div className="mt-5 grid gap-5 lg:grid-cols-[1fr_380px] items-start">
           <div className="space-y-4">
-            {/* 1 — Customer info */}
             <section aria-labelledby="co-info-h" className="rounded-[22px] bg-white p-5 sm:p-6 ring-1 ring-rosewood-100/70">
               <h2 id="co-info-h" className="flex items-center gap-2 font-display text-xl sm:text-2xl text-rosewood-950">
                 <span className="grid h-8 w-8 place-items-center rounded-full bg-rosewood-800 text-white text-sm font-bold">1</span>
@@ -442,7 +431,6 @@ export default function CheckoutPage() {
               </div>
             </section>
 
-            {/* 2 — Delivery */}
             <section aria-labelledby="co-del-h" className="rounded-[22px] bg-white p-5 sm:p-6 ring-1 ring-rosewood-100/70">
               <h2 id="co-del-h" className="flex items-center gap-2 font-display text-xl sm:text-2xl text-rosewood-950">
                 <span className="grid h-8 w-8 place-items-center rounded-full bg-rosewood-800 text-white text-sm font-bold">2</span>
@@ -507,7 +495,6 @@ export default function CheckoutPage() {
               </div>
             </section>
 
-            {/* 3 — Payment */}
             <section aria-labelledby="co-pay-h" className="rounded-[22px] bg-white p-5 sm:p-6 ring-1 ring-rosewood-100/70">
               <h2 id="co-pay-h" className="flex items-center gap-2 font-display text-xl sm:text-2xl text-rosewood-950">
                 <span className="grid h-8 w-8 place-items-center rounded-full bg-rosewood-800 text-white text-sm font-bold">3</span>
@@ -540,35 +527,11 @@ export default function CheckoutPage() {
                 </p>
               )}
             </section>
-
-            {/* Mobile summary collapsible */}
-            <section aria-label="Order items" className="rounded-[22px] bg-white p-5 sm:p-6 ring-1 ring-rosewood-100/70 lg:hidden">
-              <h2 className="font-display text-xl text-rosewood-950">Items ({lines.length})</h2>
-              <ul className="mt-3 space-y-2.5">
-                {lines.map((l) => (
-                  <li key={l.key} className="flex items-center gap-3">
-                    <span className="relative h-14 w-12 shrink-0 overflow-hidden rounded-xl bg-cream-100">
-                      {l.imageUrl ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={l.imageUrl} alt="" className="h-full w-full object-cover" loading="lazy" />
-                      ) : null}
-                      <span className="absolute -top-0 -right-0 grid h-5 min-w-5 place-items-center rounded-full bg-ink-900 px-1 text-[10px] font-bold text-white">{l.quantity}</span>
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-semibold">{l.productName}</span>
-                      <span className="block text-xs text-ink-500">{l.variant ? `${l.variant.color} · ${l.variant.size}` : "Standard"}</span>
-                    </span>
-                    <span className="text-sm font-bold tabular-nums shrink-0">{formatTaka((l.variant?.price ?? l.basePrice) * l.quantity)}</span>
-                  </li>
-                ))}
-              </ul>
-            </section>
           </div>
 
-          {/* Summary — desktop sticky / mobile static above CTA */}
           <aside aria-label="Order summary" className="lg:sticky lg:top-24 rounded-[22px] bg-white p-5 sm:p-6 ring-1 ring-rosewood-100/70">
             <h2 className="font-display text-2xl text-rosewood-950">Order Summary</h2>
-            <ul className="mt-3 space-y-2.5 max-h-64 overflow-y-auto pr-1 hidden lg:block">
+            <ul className="mt-3 space-y-2.5 max-h-64 overflow-y-auto pr-1">
               {lines.map((l) => (
                 <li key={l.key} className="flex items-center gap-3">
                   <span className="relative h-14 w-12 shrink-0 overflow-hidden rounded-xl bg-cream-100">
@@ -587,7 +550,6 @@ export default function CheckoutPage() {
               ))}
             </ul>
 
-            {/* Coupon */}
             <div className="mt-4">
               {couponApplied ? (
                 <div className="flex items-center justify-between rounded-2xl bg-emerald-50 border border-emerald-200 px-4 py-3">
@@ -626,13 +588,12 @@ export default function CheckoutPage() {
             )}
             {errors.bag && <p role="alert" className="mt-2 text-sm text-red-600">{errors.bag}</p>}
 
-            {/* Desktop Place Order Button */}
             <button
               type="button"
               onClick={placeOrder}
               disabled={placing || lines.length === 0}
               aria-busy={placing}
-              className="btn-sheen mt-4 hidden lg:flex min-h-[58px] w-full items-center justify-center gap-2 rounded-full bg-rosewood-800 text-base font-bold text-white hover:bg-rosewood-900 active:scale-[0.99] transition disabled:opacity-60 shadow-[0_16px_32px_rgba(79,21,48,0.32)]"
+              className="btn-sheen mt-4 flex min-h-[58px] w-full items-center justify-center gap-2 rounded-full bg-rosewood-800 text-base font-bold text-white hover:bg-rosewood-900 active:scale-[0.99] transition disabled:opacity-60 shadow-[0_16px_32px_rgba(79,21,48,0.32)]"
             >
               {placing ? (
                 <><Loader2 size={19} className="animate-spin" aria-hidden /> Placing your order…</>
@@ -641,31 +602,6 @@ export default function CheckoutPage() {
               )}
             </button>
           </aside>
-        </div>
-      )}
-
-      {/* Mobile Sticky Bottom CTA */}
-      {lines.length > 0 && (
-        <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-rosewood-100 bg-white/95 p-4 backdrop-blur-md lg:hidden">
-          <div className="mx-auto flex max-w-md items-center justify-between gap-3">
-            <div>
-              <span className="block text-xs text-ink-500">Total payable</span>
-              <span className="block font-bold text-lg text-rosewood-900 tabular-nums">{formatTaka(total)}</span>
-            </div>
-            <button
-              type="button"
-              onClick={placeOrder}
-              disabled={placing}
-              aria-busy={placing}
-              className="btn-sheen flex min-h-[50px] flex-1 items-center justify-center gap-2 rounded-full bg-rosewood-800 px-6 text-sm font-bold text-white active:scale-[0.98] transition disabled:opacity-60 shadow-lg"
-            >
-              {placing ? (
-                <><Loader2 size={18} className="animate-spin" aria-hidden /> Placing…</>
-              ) : (
-                <>Place Order <ArrowRight size={16} strokeWidth={2.5} aria-hidden /></>
-              )}
-            </button>
-          </div>
         </div>
       )}
     </div>
