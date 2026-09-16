@@ -6,13 +6,13 @@ import { Loader2, Trash2, RefreshCw } from "lucide-react";
 
 type Order = {
   id: string;
-  orderNumber: string;
-  customerName: string;
-  phone: string;
-  totalAmount: number;
-  status: string;
-  paymentMethod: string;
-  createdAt: string;
+  orderNumber?: string;
+  customerName?: string;
+  phone?: string;
+  totalAmount?: number;
+  status?: string;
+  paymentMethod?: string;
+  createdAt?: string;
 };
 
 export default function AdminOrdersPage() {
@@ -25,9 +25,13 @@ export default function AdminOrdersPage() {
     try {
       const res = await fetch("/api/admin/orders");
       const data = await res.json();
-      if (data.orders) {
-        setOrders(data.orders);
-      }
+      
+      // ব্যাকএন্ড থেকে Array বা Object যাই আসুক সব হ্যান্ডেল করবে
+      const orderList = Array.isArray(data)
+        ? data
+        : data.orders || data.items || data.data || [];
+        
+      setOrders(orderList);
     } catch (e) {
       console.error("Failed to load orders", e);
     } finally {
@@ -131,7 +135,7 @@ export default function AdminOrdersPage() {
               <div className="flex items-center gap-3">
                 <div className="text-right">
                   <span className="font-bold text-sm text-rosewood-950 block">
-                    ৳{order.totalAmount}
+                    ৳{order.totalAmount ?? 0}
                   </span>
                   <span className="text-[10px] text-ink-400 font-bold uppercase">
                     {order.paymentMethod || "COD"}
