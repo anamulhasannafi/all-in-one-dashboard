@@ -2,34 +2,7 @@
 
 import { useEffect, useState, use } from "react";
 import Link from "next/link";
-import { ArrowLeft, Loader2, Phone, MapPin, User, Package, CreditCard, Calendar } from "lucide-react";
-
-type OrderItem = {
-  id: string;
-  productName?: string;
-  name?: string;
-  quantity: number;
-  price: number;
-  imageUrl?: string;
-  variantInfo?: string;
-};
-
-type OrderDetail = {
-  id: string;
-  orderNumber?: string;
-  customerName: string;
-  phone: string;
-  address: string;
-  city?: string;
-  area?: string;
-  note?: string;
-  totalAmount: number;
-  shippingFee?: number;
-  status: string;
-  paymentMethod: string;
-  createdAt: string;
-  items?: OrderItem[];
-};
+import { ArrowLeft, Loader2, Phone, MapPin, User, Package, CreditCard, Calendar, Mail } from "lucide-react";
 
 export default function AdminOrderDetailPage({
   params,
@@ -37,7 +10,7 @@ export default function AdminOrderDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
-  const [order, setOrder] = useState<OrderDetail | null>(null);
+  const [order, setOrder] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
 
@@ -71,7 +44,7 @@ export default function AdminOrderDetailPage({
         body: JSON.stringify({ status: newStatus }),
       });
       if (res.ok) {
-        setOrder((prev) => (prev ? { ...prev, status: newStatus } : null));
+        setOrder((prev: any) => (prev ? { ...prev, status: newStatus } : null));
       } else {
         alert("Status update failed");
       }
@@ -101,6 +74,24 @@ export default function AdminOrderDetailPage({
     );
   }
 
+  // Fallback variables for all field variations
+  const orderNum = order.orderNumber || order.order_number || order.id?.slice(0, 8);
+  const customerName = order.customerName || order.customer_name || order.name || "Customer";
+  const phone = order.phone || order.customerPhone || order.customer_phone || "N/A";
+  const email = order.email || order.customerEmail || order.customer_email || "Not Provided";
+  const address = order.address || order.fullAddress || order.shippingAddress || order.shipping_address || "No address provided";
+  const city = order.city || order.district || "";
+  const area = order.area || order.upazila || "";
+  const note = order.note || order.orderNote || order.customer_note || "";
+  
+  const totalAmount = order.totalAmount ?? order.total_amount ?? order.total ?? order.amount ?? 0;
+  const shippingFee = order.shippingFee ?? order.shipping_fee ?? order.deliveryFee ?? order.delivery_charge ?? 0;
+  const paymentMethod = order.paymentMethod || order.payment_method || "COD";
+  const paymentStatus = order.paymentStatus || order.payment_status || "Pending";
+  const createdAt = order.createdAt || order.created_at;
+
+  const items = order.items || order.orderItems || order.order_items || [];
+
   return (
     <div className="max-w-4xl mx-auto pb-16 px-4">
       <Link
@@ -113,17 +104,19 @@ export default function AdminOrderDetailPage({
       <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
         <div>
           <h1 className="font-display text-2xl font-bold text-rosewood-950">
-            Order #{order.orderNumber || order.id.slice(0, 8)}
+            Order #{orderNum}
           </h1>
-          <p className="text-xs text-ink-500 flex items-center gap-1 mt-1">
-            <Calendar size={13} /> {new Date(order.createdAt).toLocaleString()}
-          </p>
+          {createdAt && (
+            <p className="text-xs text-ink-500 flex items-center gap-1 mt-1">
+              <Calendar size={13} /> {new Date(createdAt).toLocaleString()}
+            </p>
+          )}
         </div>
 
         <div className="flex items-center gap-2">
           <span className="text-xs font-medium text-ink-500">Status:</span>
           <select
-            value={order.status}
+            value={order.status || "pending"}
             onChange={(e) => handleStatusChange(e.target.value)}
             disabled={updating}
             className="px-3 py-1.5 rounded-xl bg-white ring-1 ring-rosewood-200 text-xs font-bold text-rosewood-950 outline-none focus:ring-2 focus:ring-rosewood-800"
@@ -144,9 +137,12 @@ export default function AdminOrderDetailPage({
             <h2 className="text-sm font-bold text-rosewood-950 mb-3 flex items-center gap-2">
               <User size={16} /> Customer Details
             </h2>
-            <p className="text-sm font-semibold text-rosewood-900">{order.customerName}</p>
+            <p className="text-sm font-semibold text-rosewood-900">{customerName}</p>
             <p className="text-xs text-ink-600 flex items-center gap-1.5 mt-2">
-              <Phone size={13} /> {order.phone}
+              <Phone size={13} /> {phone}
+            </p>
+            <p className="text-xs text-ink-600 flex items-center gap-1.5 mt-1">
+              <Mail size={13} /> {email}
             </p>
           </div>
 
@@ -155,16 +151,16 @@ export default function AdminOrderDetailPage({
               <MapPin size={16} /> Delivery Location
             </h2>
             <p className="text-xs text-ink-700 leading-relaxed font-medium">
-              {order.address || "No address provided"}
+              {address}
             </p>
-            {(order.city || order.area) && (
+            {(city || area) && (
               <p className="text-xs font-bold text-rosewood-800 mt-2">
-                {[order.area, order.city].filter(Boolean).join(", ")}
+                {[area, city].filter(Boolean).join(", ")}
               </p>
             )}
-            {order.note && (
+            {note && (
               <div className="mt-3 p-2.5 bg-amber-50 rounded-xl ring-1 ring-amber-200 text-[11px] text-amber-900">
-                <span className="font-bold">Note:</span> {order.note}
+                <span className="font-bold">Note:</span> {note}
               </div>
             )}
           </div>
@@ -173,45 +169,57 @@ export default function AdminOrderDetailPage({
             <h2 className="text-sm font-bold text-rosewood-950 mb-2 flex items-center gap-2">
               <CreditCard size={16} /> Payment Info
             </h2>
-            <div className="flex justify-between items-center text-xs">
+            <div className="flex justify-between items-center text-xs mb-1">
               <span className="text-ink-500">Method:</span>
-              <span className="font-bold uppercase text-rosewood-900">{order.paymentMethod || "COD"}</span>
+              <span className="font-bold uppercase text-rosewood-900">{paymentMethod}</span>
+            </div>
+            <div className="flex justify-between items-center text-xs">
+              <span className="text-ink-500">Payment Status:</span>
+              <span className="font-bold uppercase text-emerald-700">{paymentStatus}</span>
             </div>
           </div>
         </div>
 
-        {/* Product Items */}
+        {/* Product Items & Calculations */}
         <div className="md:col-span-2">
           <div className="bg-white p-6 rounded-3xl ring-1 ring-rosewood-100 shadow-sm">
             <h2 className="text-sm font-bold text-rosewood-950 mb-4 flex items-center gap-2">
-              <Package size={16} /> Ordered Items
+              <Package size={16} /> Ordered Items ({items.length})
             </h2>
 
             <div className="divide-y divide-rosewood-50">
-              {order.items && order.items.length > 0 ? (
-                order.items.map((item) => (
-                  <div key={item.id} className="py-3 flex items-center justify-between gap-4">
-                    <div className="flex items-center gap-3">
-                      {item.imageUrl ? (
-                        <img src={item.imageUrl} alt="" className="w-12 h-12 object-cover rounded-xl bg-cream-50" />
-                      ) : (
-                        <div className="w-12 h-12 rounded-xl bg-cream-100 text-rosewood-900 flex items-center justify-center text-xs">🛍️</div>
-                      )}
-                      <div>
-                        <p className="text-xs font-bold text-rosewood-950">{item.productName || item.name || "Product"}</p>
-                        {item.variantInfo && (
-                          <p className="text-[11px] text-ink-400">{item.variantInfo}</p>
+              {items && items.length > 0 ? (
+                items.map((item: any, idx: number) => {
+                  const pName = item.productName || item.product_name || item.name || item.title || "Product";
+                  const pPrice = item.price ?? item.unitPrice ?? item.unit_price ?? 0;
+                  const pQty = item.quantity ?? item.qty ?? 1;
+                  const pImg = item.imageUrl || item.image_url || item.image || item.thumbnail;
+                  const pVariant = item.variantInfo || item.variant || item.color || item.size;
+
+                  return (
+                    <div key={item.id || idx} className="py-3 flex items-center justify-between gap-4">
+                      <div className="flex items-center gap-3">
+                        {pImg ? (
+                          <img src={pImg} alt="" className="w-12 h-12 object-cover rounded-xl bg-cream-50" />
+                        ) : (
+                          <div className="w-12 h-12 rounded-xl bg-cream-100 text-rosewood-900 flex items-center justify-center text-xs">🛍️</div>
                         )}
-                        <p className="text-xs text-ink-500 mt-0.5">
-                          ৳{item.price} × {item.quantity}
-                        </p>
+                        <div>
+                          <p className="text-xs font-bold text-rosewood-950">{pName}</p>
+                          {pVariant && (
+                            <p className="text-[11px] text-ink-400">{typeof pVariant === 'string' ? pVariant : JSON.stringify(pVariant)}</p>
+                          )}
+                          <p className="text-xs text-ink-500 mt-0.5">
+                            ৳{pPrice} × {pQty}
+                          </p>
+                        </div>
                       </div>
+                      <span className="text-xs font-bold text-rosewood-950">
+                        ৳{pPrice * pQty}
+                      </span>
                     </div>
-                    <span className="text-xs font-bold text-rosewood-950">
-                      ৳{item.price * item.quantity}
-                    </span>
-                  </div>
-                ))
+                  );
+                })
               ) : (
                 <p className="text-xs text-ink-400 py-4">No item details found</p>
               )}
@@ -220,11 +228,11 @@ export default function AdminOrderDetailPage({
             <div className="border-t border-rosewood-100 mt-4 pt-4 space-y-2 text-xs">
               <div className="flex justify-between text-ink-600">
                 <span>Shipping Fee</span>
-                <span>৳{order.shippingFee ?? 0}</span>
+                <span>৳{shippingFee}</span>
               </div>
               <div className="flex justify-between text-base font-bold text-rosewood-950 pt-2 border-t border-rosewood-50">
                 <span>Total Amount</span>
-                <span>৳{order.totalAmount}</span>
+                <span>৳{totalAmount}</span>
               </div>
             </div>
           </div>

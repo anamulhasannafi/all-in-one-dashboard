@@ -4,19 +4,8 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Loader2, Trash2, RefreshCw } from "lucide-react";
 
-type Order = {
-  id: string;
-  orderNumber?: string;
-  customerName?: string;
-  phone?: string;
-  totalAmount?: number;
-  status?: string;
-  paymentMethod?: string;
-  createdAt?: string;
-};
-
 export default function AdminOrdersPage() {
-  const [orders, setOrders] = useState<Order[]>([]);
+  const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
 
@@ -26,7 +15,6 @@ export default function AdminOrdersPage() {
       const res = await fetch("/api/admin/orders");
       const data = await res.json();
       
-      // ব্যাকএন্ড থেকে Array বা Object যাই আসুক সব হ্যান্ডেল করবে
       const orderList = Array.isArray(data)
         ? data
         : data.orders || data.items || data.data || [];
@@ -60,12 +48,17 @@ export default function AdminOrdersPage() {
     }
   };
 
-  const filteredOrders = orders.filter(
-    (o) =>
-      o.orderNumber?.toLowerCase().includes(search.toLowerCase()) ||
-      o.customerName?.toLowerCase().includes(search.toLowerCase()) ||
-      o.phone?.includes(search)
-  );
+  const filteredOrders = orders.filter((o) => {
+    const code = o.orderNumber || o.order_number || o.id || "";
+    const name = o.customerName || o.customer_name || o.name || "";
+    const phone = o.phone || o.customerPhone || o.customer_phone || "";
+    const query = search.toLowerCase();
+    return (
+      code.toLowerCase().includes(query) ||
+      name.toLowerCase().includes(query) ||
+      phone.includes(query)
+    );
+  });
 
   return (
     <div className="max-w-4xl mx-auto pb-16 px-4">
@@ -107,51 +100,60 @@ export default function AdminOrdersPage() {
         </div>
       ) : (
         <div className="space-y-3">
-          {filteredOrders.map((order) => (
-            <Link
-              key={order.id}
-              href={`/admin/orders/${order.id}`}
-              className="flex items-center justify-between p-4 bg-white rounded-2xl ring-1 ring-rosewood-100/80 hover:ring-rosewood-300 hover:shadow-sm transition group"
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-cream-100 text-rosewood-900 flex items-center justify-center shrink-0">
-                  📦
+          {filteredOrders.map((order) => {
+            const orderNum = order.orderNumber || order.order_number || order.id?.slice(0, 8);
+            const customerName = order.customerName || order.customer_name || order.name || "Customer";
+            const phone = order.phone || order.customerPhone || order.customer_phone || "N/A";
+            const amount = order.totalAmount ?? order.total_amount ?? order.total ?? order.amount ?? 0;
+            const status = order.status || "pending";
+            const paymentMethod = order.paymentMethod || order.payment_method || "COD";
+
+            return (
+              <Link
+                key={order.id}
+                href={`/admin/orders/${order.id}`}
+                className="flex items-center justify-between p-4 bg-white rounded-2xl ring-1 ring-rosewood-100/80 hover:ring-rosewood-300 hover:shadow-sm transition group"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-cream-100 text-rosewood-900 flex items-center justify-center shrink-0">
+                    📦
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-sm text-rosewood-950">
+                        {orderNum}
+                      </span>
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-amber-100 text-amber-800">
+                        {status}
+                      </span>
+                    </div>
+                    <p className="text-xs text-ink-500 mt-0.5">
+                      {customerName} ({phone})
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold text-sm text-rosewood-950">
-                      {order.orderNumber || order.id.slice(0, 8)}
+
+                <div className="flex items-center gap-3">
+                  <div className="text-right">
+                    <span className="font-bold text-sm text-rosewood-950 block">
+                      ৳{amount}
                     </span>
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-amber-100 text-amber-800">
-                      {order.status || "pending"}
+                    <span className="text-[10px] text-ink-400 font-bold uppercase">
+                      {paymentMethod}
                     </span>
                   </div>
-                  <p className="text-xs text-ink-500 mt-0.5">
-                    {order.customerName || "Customer"} ({order.phone || "N/A"})
-                  </p>
-                </div>
-              </div>
 
-              <div className="flex items-center gap-3">
-                <div className="text-right">
-                  <span className="font-bold text-sm text-rosewood-950 block">
-                    ৳{order.totalAmount ?? 0}
-                  </span>
-                  <span className="text-[10px] text-ink-400 font-bold uppercase">
-                    {order.paymentMethod || "COD"}
-                  </span>
+                  <button
+                    onClick={(e) => handleDelete(e, order.id)}
+                    className="p-2 text-rose-600 hover:bg-rose-50 rounded-xl transition"
+                    title="Delete Order"
+                  >
+                    <Trash2 size={16} />
+                  </button>
                 </div>
-
-                <button
-                  onClick={(e) => handleDelete(e, order.id)}
-                  className="p-2 text-rose-600 hover:bg-rose-50 rounded-xl transition"
-                  title="Delete Order"
-                >
-                  <Trash2 size={16} />
-                </button>
-              </div>
-            </Link>
-          ))}
+              </Link>
+            );
+          })}
         </div>
       )}
     </div>
