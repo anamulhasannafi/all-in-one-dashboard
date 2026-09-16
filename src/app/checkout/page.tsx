@@ -376,10 +376,10 @@ export default function CheckoutPage() {
   };
 
   const inputCls = (bad?: string) =>
-    `input-elegant min-h-[52px] ${bad ? "border-red-500" : ""}`;
+    `input-elegant min-h-[52px] w-full ${bad ? "border-red-500" : ""}`;
 
   return (
-    <div className="mx-auto max-w-6xl px-4 sm:px-6 py-6 sm:py-10 pb-32 lg:pb-10">
+    <div className="mx-auto max-w-6xl w-full overflow-x-hidden px-4 sm:px-6 py-6 sm:py-10 pb-32 lg:pb-10 min-w-0">
       <Link href="/cart" className="inline-flex items-center gap-1.5 text-sm font-medium text-ink-500 hover:text-rosewood-700 min-h-11">
         <ChevronLeft size={17} aria-hidden /> Back to bag
       </Link>
@@ -398,53 +398,53 @@ export default function CheckoutPage() {
       )}
 
       {lines.length === 0 && !validating ? (
-        <div className="mt-8 rounded-[20px] bg-white p-10 text-center ring-1 ring-rosewood-100/70">
+        <div className="mt-8 rounded-[20px] bg-white p-6 sm:p-10 text-center ring-1 ring-rosewood-100/70 w-full">
           <p className="font-display text-2xl text-rosewood-950">Your bag is empty</p>
           <Link href="/shop" className="mt-4 inline-flex min-h-12 items-center rounded-full bg-rosewood-800 px-7 text-sm font-semibold text-white">
             Continue Shopping
           </Link>
         </div>
       ) : (
-        <div className="mt-5 grid gap-5 lg:grid-cols-[1fr_380px] items-start">
-          <div className="space-y-4">
-            <section aria-labelledby="co-info-h" className="rounded-[22px] bg-white p-5 sm:p-6 ring-1 ring-rosewood-100/70">
+        <div className="mt-5 grid gap-5 lg:grid-cols-[1fr_380px] items-start w-full min-w-0">
+          <div className="space-y-4 w-full min-w-0">
+            <section aria-labelledby="co-info-h" className="rounded-[22px] bg-white p-4 sm:p-6 ring-1 ring-rosewood-100/70 w-full min-w-0">
               <h2 id="co-info-h" className="flex items-center gap-2 font-display text-xl sm:text-2xl text-rosewood-950">
-                <span className="grid h-8 w-8 place-items-center rounded-full bg-rosewood-800 text-white text-sm font-bold">1</span>
+                <span className="grid h-8 w-8 place-items-center shrink-0 rounded-full bg-rosewood-800 text-white text-sm font-bold">1</span>
                 Customer Information
               </h2>
-              <div className="mt-4 grid gap-3.5 sm:grid-cols-2">
-                <div className="sm:col-span-1">
-                  <label htmlFor="co-name" className="text-sm font-semibold">Full name *</label>
+              <div className="mt-4 grid gap-3.5 sm:grid-cols-2 w-full">
+                <div className="sm:col-span-1 w-full min-w-0">
+                  <label htmlFor="co-name" className="text-sm font-semibold block">Full name *</label>
                   <input id="co-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Nusrat Jahan" autoComplete="name" aria-invalid={!!errors.name} aria-describedby={errors.name ? "co-name-err" : undefined} className={`${inputCls(errors.name)} mt-1.5`} />
                   {errors.name && <p id="co-name-err" role="alert" className="mt-1 text-[13px] text-red-600">{errors.name}</p>}
                 </div>
-                <div>
-                  <label htmlFor="co-phone" className="text-sm font-semibold">Mobile number *</label>
+                <div className="w-full min-w-0">
+                  <label htmlFor="co-phone" className="text-sm font-semibold block">Mobile number *</label>
                   <input id="co-phone" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="01XXXXXXXXX" inputMode="tel" autoComplete="tel" aria-invalid={!!errors.phone} aria-describedby={errors.phone ? "co-phone-err" : undefined} className={`${inputCls(errors.phone)} mt-1.5`} />
                   {errors.phone ? <p id="co-phone-err" role="alert" className="mt-1 text-[13px] text-red-600">{errors.phone}</p> : <p className="mt-1 text-xs text-ink-500">Bangladeshi mobile — needed for delivery confirmation</p>}
                 </div>
-                <div className="sm:col-span-2">
-                  <label htmlFor="co-email" className="text-sm font-semibold">Email <span className="font-normal text-ink-500">(optional)</span></label>
+                <div className="sm:col-span-2 w-full min-w-0">
+                  <label htmlFor="co-email" className="text-sm font-semibold block">Email <span className="font-normal text-ink-500">(optional)</span></label>
                   <input id="co-email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@email.com" inputMode="email" autoComplete="email" aria-invalid={!!errors.email} className={`${inputCls(errors.email)} mt-1.5`} />
                   {errors.email && <p role="alert" className="mt-1 text-[13px] text-red-600">{errors.email}</p>}
                 </div>
               </div>
             </section>
 
-            <section aria-labelledby="co-del-h" className="rounded-[22px] bg-white p-5 sm:p-6 ring-1 ring-rosewood-100/70">
+            <section aria-labelledby="co-del-h" className="rounded-[22px] bg-white p-4 sm:p-6 ring-1 ring-rosewood-100/70 w-full min-w-0">
               <h2 id="co-del-h" className="flex items-center gap-2 font-display text-xl sm:text-2xl text-rosewood-950">
-                <span className="grid h-8 w-8 place-items-center rounded-full bg-rosewood-800 text-white text-sm font-bold">2</span>
+                <span className="grid h-8 w-8 place-items-center shrink-0 rounded-full bg-rosewood-800 text-white text-sm font-bold">2</span>
                 Delivery Location
               </h2>
-              <div className="mt-4 grid gap-3.5">
-                <div>
-                  <span id="zone-label" className="text-sm font-semibold">Delivery area *</span>
+              <div className="mt-4 grid gap-3.5 w-full">
+                <div className="w-full min-w-0">
+                  <span id="zone-label" className="text-sm font-semibold block">Delivery area *</span>
                   {zonesLoading ? (
-                    <div className="mt-1.5 space-y-2" aria-label="Loading delivery areas">
-                      {[0, 1].map((i) => <div key={i} className="h-[52px] rounded-2xl bg-cream-100 animate-pulse" />)}
+                    <div className="mt-1.5 space-y-2 w-full" aria-label="Loading delivery areas">
+                      {[0, 1].map((i) => <div key={i} className="h-[52px] rounded-2xl bg-cream-100 animate-pulse w-full" />)}
                     </div>
                   ) : (
-                    <div className="mt-1.5 grid gap-2" role="radiogroup" aria-labelledby="zone-label">
+                    <div className="mt-1.5 grid gap-2 w-full" role="radiogroup" aria-labelledby="zone-label">
                       {zones.map((z) => {
                         const active = zoneId === z.id;
                         const free = z.freeAbove != null && subtotal - discount >= z.freeAbove;
@@ -455,14 +455,14 @@ export default function CheckoutPage() {
                             role="radio"
                             aria-checked={active}
                             onClick={() => setZoneId(z.id)}
-                            className={`flex items-center gap-3 rounded-2xl border p-3.5 text-left min-h-[60px] transition active:scale-[0.99] ${active ? "border-rosewood-700 bg-rosewood-50 ring-1 ring-rosewood-600" : "border-rosewood-100 bg-cream-50/50"}`}
+                            className={`flex items-center gap-3 rounded-2xl border p-3.5 text-left min-h-[60px] w-full transition active:scale-[0.99] min-w-0 ${active ? "border-rosewood-700 bg-rosewood-50 ring-1 ring-rosewood-600" : "border-rosewood-100 bg-cream-50/50"}`}
                           >
                             <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl ${active ? "bg-rosewood-800 text-white" : "bg-white text-rosewood-700 ring-1 ring-rosewood-100"}`}>
                               <Truck size={19} strokeWidth={1.75} aria-hidden />
                             </span>
                             <span className="flex-1 min-w-0">
-                              <span className="block text-[15px] font-bold">{z.name}</span>
-                              <span className="block text-xs text-ink-500">{z.estimatedText || "2-4 days"}{z.freeAbove ? ` · Free over ${formatTaka(z.freeAbove)}` : ""}</span>
+                              <span className="block text-[15px] font-bold truncate">{z.name}</span>
+                              <span className="block text-xs text-ink-500 truncate">{z.estimatedText || "2-4 days"}{z.freeAbove ? ` · Free over ${formatTaka(z.freeAbove)}` : ""}</span>
                             </span>
                             <span className="text-sm font-bold tabular-nums shrink-0">{free ? <span className="text-emerald-700">FREE</span> : formatTaka(z.charge)}</span>
                           </button>
@@ -470,37 +470,37 @@ export default function CheckoutPage() {
                       })}
                     </div>
                   )}
-                  {errors.zoneId && <p role="alert" className="text-[13px] text-red-600">{errors.zoneId}</p>}
+                  {errors.zoneId && <p role="alert" className="text-[13px] text-red-600 mt-1">{errors.zoneId}</p>}
                 </div>
-                <div className="grid gap-3.5 sm:grid-cols-2">
-                  <div>
-                    <label htmlFor="co-city" className="text-sm font-semibold">City *</label>
+                <div className="grid gap-3.5 sm:grid-cols-2 w-full">
+                  <div className="w-full min-w-0">
+                    <label htmlFor="co-city" className="text-sm font-semibold block">City *</label>
                     <input id="co-city" value={city} onChange={(e) => setCity(e.target.value)} placeholder="Dhaka" autoComplete="address-level2" aria-invalid={!!errors.city} className={`${inputCls(errors.city)} mt-1.5`} />
                     {errors.city && <p role="alert" className="mt-1 text-[13px] text-red-600">{errors.city}</p>}
                   </div>
-                  <div>
-                    <label htmlFor="co-area" className="text-sm font-semibold">Area <span className="font-normal text-ink-500">(optional)</span></label>
-                    <input id="co-area" value={area} onChange={(e) => setArea(e.target.value)} placeholder="e.g. Banani, Mirpur 10" autoComplete="address-level3" className="input-elegant min-h-[52px] mt-1.5" />
+                  <div className="w-full min-w-0">
+                    <label htmlFor="co-area" className="text-sm font-semibold block">Area <span className="font-normal text-ink-500">(optional)</span></label>
+                    <input id="co-area" value={area} onChange={(e) => setArea(e.target.value)} placeholder="e.g. Banani, Mirpur 10" autoComplete="address-level3" className="input-elegant min-h-[52px] w-full mt-1.5" />
                   </div>
                 </div>
-                <div>
-                  <label htmlFor="co-address" className="text-sm font-semibold">Full address *</label>
+                <div className="w-full min-w-0">
+                  <label htmlFor="co-address" className="text-sm font-semibold block">Full address *</label>
                   <textarea id="co-address" value={address} onChange={(e) => setAddress(e.target.value)} placeholder="House, road, area — e.g. House 12, Road 5, Banani DOHS" rows={2} autoComplete="street-address" aria-invalid={!!errors.address} aria-describedby={errors.address ? "co-address-err" : undefined} className={`${inputCls(errors.address)} mt-1.5`} />
                   {errors.address && <p id="co-address-err" role="alert" className="mt-1 text-[13px] text-red-600">{errors.address}</p>}
                 </div>
-                <div>
-                  <label htmlFor="co-notes" className="text-sm font-semibold">Order notes <span className="font-normal text-ink-500">(optional)</span></label>
-                  <input id="co-notes" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="e.g. Call before delivery" className="input-elegant min-h-[52px] mt-1.5" />
+                <div className="w-full min-w-0">
+                  <label htmlFor="co-notes" className="text-sm font-semibold block">Order notes <span className="font-normal text-ink-500">(optional)</span></label>
+                  <input id="co-notes" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="e.g. Call before delivery" className="input-elegant min-h-[52px] w-full mt-1.5" />
                 </div>
               </div>
             </section>
 
-            <section aria-labelledby="co-pay-h" className="rounded-[22px] bg-white p-5 sm:p-6 ring-1 ring-rosewood-100/70">
+            <section aria-labelledby="co-pay-h" className="rounded-[22px] bg-white p-4 sm:p-6 ring-1 ring-rosewood-100/70 w-full min-w-0">
               <h2 id="co-pay-h" className="flex items-center gap-2 font-display text-xl sm:text-2xl text-rosewood-950">
-                <span className="grid h-8 w-8 place-items-center rounded-full bg-rosewood-800 text-white text-sm font-bold">3</span>
+                <span className="grid h-8 w-8 place-items-center shrink-0 rounded-full bg-rosewood-800 text-white text-sm font-bold">3</span>
                 Payment Method
               </h2>
-              <div className="mt-3 grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label="Payment method">
+              <div className="mt-3 grid gap-2 sm:grid-cols-2 w-full" role="radiogroup" aria-label="Payment method">
                 {PAYMENTS.map((m) => {
                   const active = payment === m.id;
                   return (
@@ -510,12 +510,12 @@ export default function CheckoutPage() {
                       role="radio"
                       aria-checked={active}
                       onClick={() => setPayment(m.id)}
-                      className={`flex items-center gap-3 rounded-2xl border p-3.5 text-left min-h-[60px] transition active:scale-[0.99] ${active ? "border-rosewood-700 bg-rosewood-50 ring-1 ring-rosewood-600" : "border-rosewood-100"}`}
+                      className={`flex items-center gap-3 rounded-2xl border p-3.5 text-left min-h-[60px] w-full min-w-0 transition active:scale-[0.99] ${active ? "border-rosewood-700 bg-rosewood-50 ring-1 ring-rosewood-600" : "border-rosewood-100"}`}
                     >
                       <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl font-display text-lg ${active ? "bg-rosewood-800 text-white" : "bg-cream-100 text-rosewood-800"}`} aria-hidden>{m.icon}</span>
-                      <span>
-                        <span className="flex items-center gap-1.5 text-[15px] font-bold">{m.label}{active && <Check size={15} className="text-emerald-600" strokeWidth={3} aria-hidden />}</span>
-                        <span className="block text-xs text-ink-500">{m.sub}</span>
+                      <span className="min-w-0 flex-1">
+                        <span className="flex items-center gap-1.5 text-[15px] font-bold truncate">{m.label}{active && <Check size={15} className="text-emerald-600 shrink-0" strokeWidth={3} aria-hidden />}</span>
+                        <span className="block text-xs text-ink-500 truncate">{m.sub}</span>
                       </span>
                     </button>
                   );
@@ -529,11 +529,11 @@ export default function CheckoutPage() {
             </section>
           </div>
 
-          <aside aria-label="Order summary" className="lg:sticky lg:top-24 rounded-[22px] bg-white p-5 sm:p-6 ring-1 ring-rosewood-100/70">
+          <aside aria-label="Order summary" className="lg:sticky lg:top-24 rounded-[22px] bg-white p-4 sm:p-6 ring-1 ring-rosewood-100/70 w-full min-w-0">
             <h2 className="font-display text-2xl text-rosewood-950">Order Summary</h2>
-            <ul className="mt-3 space-y-2.5 max-h-64 overflow-y-auto pr-1">
+            <ul className="mt-3 space-y-2.5 max-h-64 overflow-y-auto pr-1 w-full">
               {lines.map((l) => (
-                <li key={l.key} className="flex items-center gap-3">
+                <li key={l.key} className="flex items-center gap-3 w-full min-w-0">
                   <span className="relative h-14 w-12 shrink-0 overflow-hidden rounded-xl bg-cream-100">
                     {l.imageUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
@@ -543,27 +543,27 @@ export default function CheckoutPage() {
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm font-semibold">{l.productName}</span>
-                    <span className="block text-xs text-ink-500">{l.variant ? `${l.variant.color} · ${l.variant.size}` : "Standard"}</span>
+                    <span className="block text-xs text-ink-500 truncate">{l.variant ? `${l.variant.color} · ${l.variant.size}` : "Standard"}</span>
                   </span>
                   <span className="text-sm font-bold tabular-nums shrink-0">{formatTaka((l.variant?.price ?? l.basePrice) * l.quantity)}</span>
                 </li>
               ))}
             </ul>
 
-            <div className="mt-4">
+            <div className="mt-4 w-full min-w-0">
               {couponApplied ? (
-                <div className="flex items-center justify-between rounded-2xl bg-emerald-50 border border-emerald-200 px-4 py-3">
-                  <span className="flex items-center gap-2 text-sm font-bold text-emerald-800">
-                    <TicketPercent size={17} aria-hidden /> {couponApplied.code} · −{formatTaka(couponApplied.discount)}
+                <div className="flex items-center justify-between rounded-2xl bg-emerald-50 border border-emerald-200 px-4 py-3 w-full">
+                  <span className="flex items-center gap-2 text-sm font-bold text-emerald-800 truncate">
+                    <TicketPercent size={17} className="shrink-0" aria-hidden /> {couponApplied.code} · −{formatTaka(couponApplied.discount)}
                   </span>
-                  <button type="button" onClick={() => { setCouponApplied(null); setCoupon(""); setCouponMsg(null); }} className="text-xs font-semibold text-emerald-700 underline underline-offset-2 min-h-9 px-2">
+                  <button type="button" onClick={() => { setCouponApplied(null); setCoupon(""); setCouponMsg(null); }} className="text-xs font-semibold text-emerald-700 underline underline-offset-2 min-h-9 px-2 shrink-0">
                     Remove
                   </button>
                 </div>
               ) : (
-                <div className="flex gap-2">
+                <div className="flex gap-2 w-full">
                   <label htmlFor="co-coupon" className="sr-only">Coupon code</label>
-                  <input id="co-coupon" value={coupon} onChange={(e) => setCoupon(e.target.value.toUpperCase())} placeholder="Coupon (e.g. WELCOME10)" className="input-elegant min-h-[52px] uppercase" autoComplete="off" />
+                  <input id="co-coupon" value={coupon} onChange={(e) => setCoupon(e.target.value.toUpperCase())} placeholder="Coupon (e.g. WELCOME10)" className="input-elegant min-h-[52px] uppercase w-full min-w-0" autoComplete="off" />
                   <button type="button" onClick={applyCoupon} disabled={couponBusy} className="shrink-0 rounded-2xl bg-ink-900 px-5 text-sm font-bold text-white min-h-[52px] disabled:opacity-50 min-w-[84px]">
                     {couponBusy ? <Loader2 size={17} className="animate-spin mx-auto" aria-hidden /> : "Apply"}
                   </button>
@@ -572,7 +572,7 @@ export default function CheckoutPage() {
               {couponMsg && <p role="status" className={`mt-1.5 text-[13px] font-medium ${couponApplied ? "text-emerald-700" : "text-red-600"}`}>{couponMsg}</p>}
             </div>
 
-            <dl className="mt-4 space-y-2 border-t border-dashed border-rosewood-100 pt-4 text-[15px]">
+            <dl className="mt-4 space-y-2 border-t border-dashed border-rosewood-100 pt-4 text-[15px] w-full">
               <div className="flex justify-between"><dt className="text-ink-700">Subtotal</dt><dd className="font-semibold tabular-nums">{formatTaka(subtotal)}</dd></div>
               <div className="flex justify-between"><dt className="text-ink-700">Discount</dt><dd className={`font-semibold tabular-nums ${discount ? "text-emerald-700" : ""}`}>{discount ? `−${formatTaka(discount)}` : "—"}</dd></div>
               <div className="flex justify-between"><dt className="text-ink-700">Delivery {zone ? `(${zone.name})` : ""}</dt><dd className="font-semibold tabular-nums">{deliveryCharge === 0 && zone ? <span className="text-emerald-700">FREE</span> : formatTaka(deliveryCharge)}</dd></div>
@@ -581,7 +581,7 @@ export default function CheckoutPage() {
             {zone?.estimatedText && <p className="mt-2 flex items-center gap-1.5 text-xs text-ink-500"><Truck size={14} aria-hidden /> Estimated delivery: {zone.estimatedText}</p>}
 
             {submitError && (
-              <div id="place-order-error" role="alert" className="mt-4 flex items-start gap-2 rounded-2xl bg-red-50 border border-red-200 px-4 py-3 text-sm font-medium text-red-800">
+              <div id="place-order-error" role="alert" className="mt-4 flex items-start gap-2 rounded-2xl bg-red-50 border border-red-200 px-4 py-3 text-sm font-medium text-red-800 w-full">
                 <AlertCircle size={17} className="mt-0.5 shrink-0" aria-hidden />
                 <span>{submitError}</span>
               </div>
