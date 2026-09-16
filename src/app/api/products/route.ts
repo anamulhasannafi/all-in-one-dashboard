@@ -7,7 +7,7 @@ export async function GET(req: Request) {
   try {
     const url = new URL(req.url);
     const q = url.searchParams.get("q")?.trim() || "";
-    const category = url.searchParams.get("category") || "";
+    const category = url.searchParams.get("category")?.trim() || "";
     const sort = url.searchParams.get("sort") || "newest";
     const min = Number(url.searchParams.get("min") || 0);
     const max = Number(url.searchParams.get("max") || 0);
@@ -23,18 +23,31 @@ export async function GET(req: Request) {
       conditions.push(ilike(products.name, `%${q}%`));
     }
 
-    if (category) {
-      // স্লাগ (slug) অথবা আইডি (id) দিয়ে ক্যাটাগরি খুঁজে বের করা
+    if (category && category.toLowerCase() !== "all") {
+      const catClean = category.toLowerCase();
+      const catWithSpaces = catClean.replace(/-/g, " ");
+      const catWithHyphens = catClean.replace(/\s+/g, "-");
+
+      // স্লাগ (slug), আইডি (id) অথবা ক্যাটাগরির নামের (name) সাথে কেস-ইনসেনসিটিভভাবে ম্যাচ করানো
       const foundCat = await db
         .select({ id: categories.id })
         .from(categories)
-        .where(or(eq(categories.slug, category), eq(categories.id, category)))
+        .where(
+          or(
+            ilike(categories.slug, catClean),
+            ilike(categories.slug, catWithHyphens),
+            ilike(categories.name, catClean),
+            ilike(categories.name, catWithSpaces),
+            eq(categories.id, category)
+          )
+        )
         .limit(1);
 
       if (foundCat.length > 0) {
         conditions.push(eq(products.categoryId, foundCat[0].id));
       } else {
-        return NextResponse.json({ items: [], total: 0 });
+        // যদি সরাসরি ক্যাটাগরি টেবিলে স্লাগ না মেলে, তবে প্রোডাক্টের নিজের ক্যাটাগরি আইডিতে ম্যাচ করানোর চেষ্টা করবে
+        conditions.push(eq(products.categoryId, category));
       }
     }
 
