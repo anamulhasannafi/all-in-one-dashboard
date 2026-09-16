@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { products, categories } from "@/db/schema";
-import { and, asc, desc, eq, ilike, or, sql, gte, lte } from "drizzle-orm";
+import { and, asc, desc, eq, ilike, or, sql, gte, lte, SQL } from "drizzle-orm";
 
 export const dynamic = "force-dynamic";
 
@@ -19,28 +19,27 @@ export async function GET(req: Request) {
     const limit = Math.min(60, Math.max(1, Number(url.searchParams.get("limit") || 24)));
     const offset = Math.max(0, Number(url.searchParams.get("offset") || 0));
 
-    // শুধুমাত্র অ্যাকটিভ প্রোডাক্টগুলো দেখানোর কন্ডিশন
-    const conditions = [eq(products.active, true)];
+    const conditions: SQL[] = [eq(products.active, true)];
 
     if (q) {
       conditions.push(ilike(products.name, `%${q}%`));
     }
 
-    // 🔴 ক্যাটাগরি ম্যাচিংয়ের মূল ফিক্স 🔴
-    // এখানে ID এর বদলে সরাসরি Category Name এবং Slug দিয়ে ম্যাচ করানো হয়েছে
     if (category && category.toLowerCase() !== "all") {
       const decodedCat = decodeURIComponent(category).trim();
       const slugified = decodedCat.toLowerCase().replace(/\s+/g, "-");
       const unslugified = decodedCat.toLowerCase().replace(/-/g, " ");
 
-      conditions.push(
-        or(
-          ilike(categories.slug, slugified),
-          ilike(categories.slug, decodedCat),
-          ilike(categories.name, unslugified),
-          ilike(categories.name, decodedCat)
-        )
+      const categoryFilter = or(
+        ilike(categories.slug, slugified),
+        ilike(categories.slug, decodedCat),
+        ilike(categories.name, unslugified),
+        ilike(categories.name, decodedCat)
       );
+
+      if (categoryFilter) {
+        conditions.push(categoryFilter);
+      }
     }
 
     if (featured === "1") conditions.push(eq(products.featured, true));
@@ -54,7 +53,6 @@ export async function GET(req: Request) {
     if (sort === "price-desc") orderByClause = desc(products.basePrice);
     if (sort === "popular") orderByClause = desc(products.totalSold);
 
-    // প্রোডাক্টস এবং ক্যাটাগরিজ টেবিল জয়েন করে ডেটা আনা হচ্ছে
     const items = await db
       .select({
         id: products.id,
@@ -95,7 +93,6 @@ export async function GET(req: Request) {
     return NextResponse.json({ items: formattedItems, total });
   } catch (e) {
     console.error("products API error:", e);
-    // এরর হলেও সাইট ক্র্যাশ করবে না, ফাঁকা লিস্ট রিটার্ন করবে
     return NextResponse.json({ items: [], total: 0, error: "Could not load products" }, { status: 200 });
   }
 }
