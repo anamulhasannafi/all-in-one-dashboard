@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/db";
-import { orders, orderItems, orderStatusHistory, productVariants } from "@/db/schema";
+import { orders, orderItems, orderStatusHistory } from "@/db/schema";
 import { eq, sql } from "drizzle-orm";
 import { requireAdmin } from "@/lib/auth";
 
@@ -37,7 +37,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
       const from = order.status;
       const to = parsed.data.status;
       if (from === to) return order;
-      // restore stock if cancelling a non-cancelled order
+      
       if (to === "cancelled" && from !== "cancelled") {
         const items = await tx.select().from(orderItems).where(eq(orderItems.orderId, id));
         for (const it of items) {
@@ -63,5 +63,28 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
   } catch (e) {
     console.error("order status update failed", e);
     return NextResponse.json({ error: e instanceof Error ? e.message : "Update failed" }, { status: 500 });
+  }
+}
+
+// DELETE — Permanently delete order and linked data from database
+export async function DELETE(_req: Request, ctx: { params: Promise<{ id: string }> }) {
+  const admin = await requireAdmin();
+  if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { id } = await ctx.params;
+
+  try {
+    await db.transaction(async (tx) => {
+      await tx.delete(orderStatusHistory).where(eq(orderStatusHistory.orderId, id));
+      await tx.delete(orderItems).where(eq(orderItems.orderId, id));
+      await tx.delete(orders).where(eq(orders.id, id));
+    });
+
+    return NextResponse.json({ ok: true, message: "Order deleted permanently" });
+  } catch (e) {
+    console.error("Failed to delete order", e);
+    return NextResponse.json(
+      { error: e instanceof Error ? e.message : "Failed to delete order" },
+      { status: 500 }
+    );
   }
 }
