@@ -13,12 +13,16 @@ import {
   Check,
   TicketPercent,
   Truck,
-  UserRound,
-  MapPin,
-  CreditCard,
-  ShieldCheck,
   ChevronLeft,
 } from "@/components/icons";
+
+// Global Window interface for GTM & Meta Pixel
+declare global {
+  interface Window {
+    dataLayer?: Record<string, any>[];
+    fbq?: (...args: any[]) => void;
+  }
+}
 
 type Zone = {
   id: string;
@@ -71,6 +75,9 @@ export default function CheckoutPage() {
         ? crypto.randomUUID()
         : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
   }
+
+  // Ref to prevent duplicate begin_checkout events
+  const hasTrackedBeginCheckout = useRef(false);
 
   // Prefill saved info + user
   useEffect(() => {
@@ -171,6 +178,51 @@ export default function CheckoutPage() {
   }, [zone, subtotal, discount]);
   const total = Math.max(0, subtotal - discount + deliveryCharge);
 
+  // ==========================================
+  // TRACKING: begin_checkout / InitiateCheckout
+  // ==========================================
+  useEffect(() => {
+    if (lines.length > 0 && !hasTrackedBeginCheckout.current) {
+      hasTrackedBeginCheckout.current = true;
+
+      const itemsData = lines.map((l, index) => ({
+        item_id: l.productId,
+        item_name: l.productName,
+        price: l.variant?.price ?? l.basePrice,
+        quantity: l.quantity,
+        item_variant: l.variant ? `${l.variant.color} / ${l.variant.size}` : "Standard",
+        index: index + 1,
+      }));
+
+      // 1. GA4 / GTM DataLayer
+      window.dataLayer = window.dataLayer || [];
+      window.dataLayer.push({
+        event: "begin_checkout",
+        ecommerce: {
+          currency: "BDT",
+          value: subtotal,
+          coupon: couponApplied?.code || "",
+          items: itemsData,
+        },
+      });
+
+      // 2. Meta Pixel
+      if (typeof window.fbq === "function") {
+        window.fbq("track", "InitiateCheckout", {
+          content_type: "product",
+          contents: lines.map((l) => ({
+            id: l.productId,
+            quantity: l.quantity,
+            item_price: l.variant?.price ?? l.basePrice,
+          })),
+          value: subtotal,
+          currency: "BDT",
+          num_items: lines.reduce((acc, item) => acc + item.quantity, 0),
+        });
+      }
+    }
+  }, [lines, subtotal, couponApplied]);
+
   const applyCoupon = async () => {
     const code = coupon.trim().toUpperCase();
     if (!code) {
@@ -263,13 +315,69 @@ export default function CheckoutPage() {
         }
         return;
       }
+
+      // ==========================================
+      // TRACKING: purchase / Purchase Event
+      // ==========================================
+      const orderCode = data.order?.orderCode || `ORD-${Date.now()}`;
+      const itemsData = lines.map((l, index) => ({
+        item_id: l.productId,
+        item_name: l.productName,
+        price: l.variant?.price ?? l.basePrice,
+        quantity: l.quantity,
+        item_variant: l.variant ? `${l.variant.color} / ${l.variant.size}` : "Standard",
+        index: index + 1,
+      }));
+
+      // 1. GA4 / GTM DataLayer Purchase Event
+      window.dataLayer = window.dataLayer || [];
+      window.dataLayer.push({
+        event: "purchase",
+        ecommerce: {
+          transaction_id: orderCode,
+          value: total,
+          tax: 0,
+          shipping: deliveryCharge,
+          currency: "BDT",
+          coupon: couponApplied?.code || "",
+          items: itemsData,
+        },
+        user_data: {
+          email: email.trim() || undefined,
+          phone_number: phone.trim(),
+          first_name: name.trim().split(" ")[0] || "",
+          last_name: name.trim().split(" ").slice(1).join(" ") || "",
+          address: {
+            city: city.trim(),
+            street: address.trim(),
+            country: "BD",
+          },
+        },
+      });
+
+      // 2. Meta Pixel Purchase Event
+      if (typeof window.fbq === "function") {
+        window.fbq("track", "Purchase", {
+          value: total,
+          currency: "BDT",
+          content_type: "product",
+          contents: lines.map((l) => ({
+            id: l.productId,
+            quantity: l.quantity,
+            item_price: l.variant?.price ?? l.basePrice,
+          })),
+          order_id: orderCode,
+        });
+      }
+
       clear();
       // fresh key for any future order
       idemKey.current =
         typeof crypto !== "undefined" && "randomUUID" in crypto
           ? crypto.randomUUID()
           : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-      router.push(`/order-success?code=${encodeURIComponent(data.order.orderCode)}`);
+
+      router.push(`/order-success?code=${encodeURIComponent(orderCode)}`);
     } catch {
       setSubmitError("Network error. Your order was NOT placed — please check your connection and tap Place Order again (you won't be double-charged).");
     } finally {
@@ -518,6 +626,7 @@ export default function CheckoutPage() {
             )}
             {errors.bag && <p role="alert" className="mt-2 text-sm text-red-600">{errors.bag}</p>}
 
+            {/* Desktop Place Order Button */}
             <button
               type="button"
               onClick={placeOrder}
@@ -531,37 +640,29 @@ export default function CheckoutPage() {
                 <>Place Order · {formatTaka(total)} <ArrowRight size={18} strokeWidth={2.5} aria-hidden /></>
               )}
             </button>
-            <p className="mt-3 hidden lg:flex items-center justify-center gap-1.5 text-xs text-ink-500">
-              <ShieldCheck size={14} aria-hidden /> Prices & stock verified securely on our server
-            </p>
           </aside>
         </div>
       )}
 
-      {/* Sticky mobile Place Order */}
+      {/* Mobile Sticky Bottom CTA */}
       {lines.length > 0 && (
-        <div className="lg:hidden fixed bottom-[60px] inset-x-0 z-30 px-3 pb-[env(safe-area-inset-bottom)]">
-          <div className="rounded-[22px] bg-ink-900/95 backdrop-blur-xl p-3 shadow-2xl ring-1 ring-white/10">
-            {submitError && (
-              <p role="alert" className="mb-2 flex items-start gap-1.5 rounded-xl bg-red-500/15 px-3 py-2 text-[13px] font-medium text-red-100">
-                <AlertCircle size={15} className="mt-0.5 shrink-0" aria-hidden /> {submitError}
-              </p>
-            )}
-            <div className="flex items-center justify-between px-1.5 pb-2 text-white">
-              <span className="text-[13px] text-white/70">Total {deliveryCharge === 0 ? "(FREE delivery)" : "(incl. delivery)"}</span>
-              <span className="text-lg font-bold tabular-nums">{formatTaka(total)}</span>
+        <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-rosewood-100 bg-white/95 p-4 backdrop-blur-md lg:hidden">
+          <div className="mx-auto flex max-w-md items-center justify-between gap-3">
+            <div>
+              <span className="block text-xs text-ink-500">Total payable</span>
+              <span className="block font-bold text-lg text-rosewood-900 tabular-nums">{formatTaka(total)}</span>
             </div>
             <button
               type="button"
               onClick={placeOrder}
-              disabled={placing || lines.length === 0}
+              disabled={placing}
               aria-busy={placing}
-              className="flex min-h-[56px] w-full items-center justify-center gap-2 rounded-full bg-cream-50 text-base font-bold text-rosewood-950 active:scale-[0.99] transition disabled:opacity-60"
+              className="btn-sheen flex min-h-[50px] flex-1 items-center justify-center gap-2 rounded-full bg-rosewood-800 px-6 text-sm font-bold text-white active:scale-[0.98] transition disabled:opacity-60 shadow-lg"
             >
               {placing ? (
-                <><Loader2 size={19} className="animate-spin" aria-hidden /> Placing your order…</>
+                <><Loader2 size={18} className="animate-spin" aria-hidden /> Placing…</>
               ) : (
-                <>Place Order <ArrowRight size={18} strokeWidth={2.5} aria-hidden /></>
+                <>Place Order <ArrowRight size={16} strokeWidth={2.5} aria-hidden /></>
               )}
             </button>
           </div>

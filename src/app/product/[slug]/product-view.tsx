@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/store/cart-store";
 import { formatTaka, discountPercent } from "@/lib/format";
+import { trackEcommerceEvent } from "@/lib/gtm";
 import WishlistButton from "@/components/WishlistButton";
 import ProductCard from "@/components/ProductCard";
 import Reveal from "@/components/Reveal";
@@ -72,6 +73,27 @@ export default function ProductView({ data }: { data: {
   const gallery = images.length > 0 ? images.map((i) => i.url) : p.imageUrl ? [p.imageUrl] : [];
   const mainImg = selected?.imageUrl || gallery[imgIdx] || p.imageUrl;
 
+  // 🔴 GTM: view_item Event
+  useEffect(() => {
+    if (p?.id) {
+      trackEcommerceEvent({
+        eventName: "view_item",
+        ecommerce: {
+          currency: "BDT",
+          value: unitPrice,
+          items: [
+            {
+              item_id: p.id,
+              item_name: p.name,
+              price: unitPrice,
+              item_category: data.catName || "General",
+            },
+          ],
+        },
+      });
+    }
+  }, [p.id, unitPrice, data.catName]);
+
   const handleAdd = (openDrawer: boolean) => {
     setMsg(null);
     if (!selected) {
@@ -104,6 +126,26 @@ export default function ProductView({ data }: { data: {
       setMsg({ ok: false, text: res.message || "Could not add to bag" });
       return;
     }
+
+    // 🔴 GTM: add_to_cart Event
+    trackEcommerceEvent({
+      eventName: "add_to_cart",
+      ecommerce: {
+        currency: "BDT",
+        value: unitPrice * qty,
+        items: [
+          {
+            item_id: p.id,
+            item_name: p.name,
+            price: unitPrice,
+            item_category: data.catName || "General",
+            item_variant: selected ? `${selected.size}${selected.color ? ` - ${selected.color}` : ""}` : undefined,
+            quantity: qty,
+          },
+        ],
+      },
+    });
+
     setMsg({ ok: true, text: res.message || "Added to your bag" });
     if (openDrawer) setDrawerOpen(true);
   };
