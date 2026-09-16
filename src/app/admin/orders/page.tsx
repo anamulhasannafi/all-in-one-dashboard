@@ -1,155 +1,155 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Package, Search } from "lucide-react";
-import { Suspense } from "react";
+import { Loader2, Trash2, RefreshCw } from "lucide-react";
 
-function formatTaka(amount: number) {
-  return `৳${amount.toLocaleString()}`;
-}
+type Order = {
+  id: string;
+  orderNumber: string;
+  customerName: string;
+  phone: string;
+  totalAmount: number;
+  status: string;
+  paymentMethod: string;
+  createdAt: string;
+};
 
-function pill(status: string) {
-  const map: Record<string, string> = {
-    pending: "bg-amber-100 text-amber-800",
-    confirmed: "bg-blue-100 text-blue-800",
-    processing: "bg-violet-100 text-violet-800",
-    shipped: "bg-sky-100 text-sky-800",
-    delivered: "bg-emerald-100 text-emerald-800",
-    cancelled: "bg-red-100 text-red-700",
-    returned: "bg-stone-200 text-stone-700",
-  };
-  return map[status] || "bg-cream-100 text-ink-700";
-}
-
-function OrdersInner() {
-  const [items, setItems] = useState<any[]>([]);
-  const [q, setQ] = useState("");
+export default function AdminOrdersPage() {
+  const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
 
-  const load = useCallback(async () => {
+  const fetchOrders = async () => {
+    setLoading(true);
     try {
-      setLoading(true);
-      const res = await fetch(`/api/admin/orders`);
+      const res = await fetch("/api/admin/orders");
       const data = await res.json();
-      if (Array.isArray(data)) {
-        setItems(data);
-      } else {
-        console.error("API did not return an array:", data);
-        setItems([]);
+      if (data.orders) {
+        setOrders(data.orders);
       }
-    } catch (err) {
-      console.error("Failed to load orders:", err);
-      setItems([]);
+    } catch (e) {
+      console.error("Failed to load orders", e);
     } finally {
       setLoading(false);
     }
-  }, []);
+  };
 
   useEffect(() => {
-    load();
-  }, [load]);
+    fetchOrders();
+  }, []);
 
-  const handleDeleteOrder = async (e: React.MouseEvent, orderId: string) => {
+  const handleDelete = async (e: React.MouseEvent, id: string) => {
     e.preventDefault();
     e.stopPropagation();
-
-    if (!confirm("আপনি কি নিশ্চিত যে এই অর্ডারটি পার্মানেন্টলি ডিলিট করতে চান?")) return;
+    if (!confirm("Are you sure you want to delete this order?")) return;
 
     try {
-      const res = await fetch(`/api/admin/orders?id=${orderId}`, {
-        method: "DELETE",
-      });
-
+      const res = await fetch(`/api/admin/orders/${id}`, { method: "DELETE" });
       if (res.ok) {
-        setItems((prev) => prev.filter((item) => item.id !== orderId));
+        setOrders((prev) => prev.filter((o) => o.id !== id));
       } else {
-        alert("অর্ডার ডিলিট করতে সমস্যা হয়েছে!");
+        alert("Failed to delete order");
       }
-    } catch (err) {
-      console.error(err);
-      alert("একটি সমস্যা দেখা দিয়েছে!");
+    } catch {
+      alert("Error deleting order");
     }
   };
 
+  const filteredOrders = orders.filter(
+    (o) =>
+      o.orderNumber?.toLowerCase().includes(search.toLowerCase()) ||
+      o.customerName?.toLowerCase().includes(search.toLowerCase()) ||
+      o.phone?.includes(search)
+  );
+
   return (
-    <div>
-      <div className="flex flex-wrap items-end justify-between gap-3">
+    <div className="max-w-4xl mx-auto pb-16 px-4">
+      <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="font-display text-3xl sm:text-4xl text-rosewood-950">Orders ({items.length})</h1>
-          <p className="text-sm text-ink-500">New orders appear here instantly after checkout</p>
+          <h1 className="font-display text-2xl sm:text-3xl text-rosewood-950">
+            Orders ({orders.length})
+          </h1>
+          <p className="text-xs text-ink-500">
+            New orders appear here instantly after checkout
+          </p>
         </div>
-        <button onClick={load} className="min-h-11 rounded-full border border-rosewood-200 px-5 text-sm font-semibold hover:bg-rosewood-50">
+        <button
+          onClick={fetchOrders}
+          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white ring-1 ring-rosewood-100 text-xs font-bold text-rosewood-900 hover:bg-cream-50 transition"
+        >
+          <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
           Refresh
         </button>
       </div>
 
-      <div className="mt-4 flex flex-col sm:flex-row gap-2.5">
-        <div className="flex items-center gap-2 rounded-2xl bg-white ring-1 ring-rosewood-100 px-3.5 py-2 flex-1">
-          <Search size={17} className="text-ink-500 shrink-0" aria-hidden />
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search code, phone, name..." className="w-full bg-transparent text-sm outline-none" />
-        </div>
+      <div className="mb-4">
+        <input
+          type="text"
+          placeholder="Search code, phone, name..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="w-full rounded-2xl bg-white px-4 py-3 text-sm ring-1 ring-rosewood-100 outline-none focus:ring-2 focus:ring-rosewood-800"
+        />
       </div>
 
       {loading ? (
-        <div className="py-16 text-center text-ink-500">Loading orders...</div>
-      ) : items.length === 0 ? (
-        <div className="py-16 text-center text-ink-500 bg-white rounded-2xl mt-4 ring-1 ring-rosewood-100">
-          No orders found.
+        <div className="grid place-items-center py-16">
+          <Loader2 className="animate-spin text-rosewood-800" size={30} />
+        </div>
+      ) : filteredOrders.length === 0 ? (
+        <div className="text-center py-12 bg-white rounded-3xl ring-1 ring-rosewood-100/70 text-ink-500 text-sm">
+          No orders found
         </div>
       ) : (
-        <ul className="mt-4 space-y-2.5">
-          {items
-            .filter((o) => {
-              if (!q) return true;
-              const query = q.toLowerCase();
-              return (
-                o.orderCode?.toLowerCase().includes(query) ||
-                o.customerName?.toLowerCase().includes(query) ||
-                o.customerPhone?.toLowerCase().includes(query)
-              );
-            })
-            .map((o) => (
-              <li key={o.id} className="flex items-center justify-between gap-2 bg-white p-3.5 rounded-2xl ring-1 ring-rosewood-100">
-                <Link href={`/admin/orders/${o.id}`} className="flex items-center gap-3.5 min-w-0 flex-1">
-                  <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-cream-100 text-rosewood-900">
-                    <Package size={20} aria-hidden />
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="flex flex-wrap items-center gap-2">
-                      <span className="font-mono font-bold">{o.orderCode}</span>
-                      <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-bold ${pill(o.status)}`}>
-                        {o.status}
-                      </span>
+        <div className="space-y-3">
+          {filteredOrders.map((order) => (
+            <Link
+              key={order.id}
+              href={`/admin/orders/${order.id}`}
+              className="flex items-center justify-between p-4 bg-white rounded-2xl ring-1 ring-rosewood-100/80 hover:ring-rosewood-300 hover:shadow-sm transition group"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-cream-100 text-rosewood-900 flex items-center justify-center shrink-0">
+                  📦
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-sm text-rosewood-950">
+                      {order.orderNumber || order.id.slice(0, 8)}
                     </span>
-                    <span className="block truncate text-[13px] text-ink-500 mt-0.5">
-                      {o.customerName || "Customer"} ({o.customerPhone || "N/A"})
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-amber-100 text-amber-800">
+                      {order.status || "pending"}
                     </span>
+                  </div>
+                  <p className="text-xs text-ink-500 mt-0.5">
+                    {order.customerName || "Customer"} ({order.phone || "N/A"})
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <div className="text-right">
+                  <span className="font-bold text-sm text-rosewood-950 block">
+                    ৳{order.totalAmount}
                   </span>
-                  <span className="text-right shrink-0">
-                    <span className="block font-bold tabular-nums">{formatTaka(o.total || 0)}</span>
-                    <span className="block text-[11px] uppercase text-ink-500">{o.paymentMethod}</span>
+                  <span className="text-[10px] text-ink-400 font-bold uppercase">
+                    {order.paymentMethod || "COD"}
                   </span>
-                </Link>
+                </div>
 
                 <button
-                  onClick={(e) => handleDeleteOrder(e, o.id)}
-                  className="bg-rose-50 hover:bg-rose-100 text-rose-600 font-semibold px-3 py-2 rounded-xl text-xs transition"
+                  onClick={(e) => handleDelete(e, order.id)}
+                  className="p-2 text-rose-600 hover:bg-rose-50 rounded-xl transition"
+                  title="Delete Order"
                 >
-                  Delete
+                  <Trash2 size={16} />
                 </button>
-              </li>
-            ))}
-        </ul>
+              </div>
+            </Link>
+          ))}
+        </div>
       )}
     </div>
-  );
-}
-
-export default function AdminOrdersPage() {
-  return (
-    <Suspense fallback={<div className="py-16 text-center">Loading...</div>}>
-      <OrdersInner />
-    </Suspense>
   );
 }
