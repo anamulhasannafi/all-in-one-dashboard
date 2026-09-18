@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { formatTaka } from "@/lib/format";
-import { Loader2, Plus, Trash2, Power } from "@/components/icons";
+import { Loader2, Plus, Trash2, Power, Eye, EyeOff } from "@/components/icons";
 
 type C = {
   id: string;
@@ -36,7 +36,8 @@ export default function CouponsPage() {
     try {
       const d = await fetch("/api/admin/misc?resource=coupons").then((r) => r.json());
       setItems(d.items || []);
-    } catch {
+    } catch (err) {
+      console.error("Failed to load coupons", err);
     } finally {
       setLoading(false);
     }
@@ -63,7 +64,7 @@ export default function CouponsPage() {
     setValue(String(c.value));
     setMin(String(c.minSubtotal || 0));
     setMax(c.maxDiscount ? String(c.maxDiscount) : "");
-    setIsHidden(!!c.isHidden);
+    setIsHidden(Boolean(c.isHidden));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -73,24 +74,22 @@ export default function CouponsPage() {
 
     const payload = {
       id: editingId || undefined,
-      code,
+      code: code.trim().toUpperCase(),
       type,
-      value: Number(value),
+      value: Number(value) || 0,
       minSubtotal: Number(min) || 0,
       maxDiscount: max ? Number(max) : null,
-      isHidden,
+      isHidden: Boolean(isHidden),
     };
 
     try {
       if (editingId) {
-        // Update existing coupon
         await fetch("/api/admin/misc?resource=coupons", {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
         });
       } else {
-        // Create new coupon
         await fetch("/api/admin/misc?resource=coupons", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -100,7 +99,7 @@ export default function CouponsPage() {
       resetForm();
       load();
     } catch (err) {
-      console.error(err);
+      console.error("Error saving coupon:", err);
     } finally {
       setBusy(false);
     }
@@ -109,17 +108,15 @@ export default function CouponsPage() {
   const handleDelete = async (c: C) => {
     if (!confirm(`Delete coupon "${c.code}"?`)) return;
     try {
-      // API Attempt 1: DELETE with query param
       const res = await fetch(`/api/admin/misc?resource=coupons&id=${c.id}`, {
         method: "DELETE",
       });
-      
-      // API Attempt 2: Fallback to PUT payload delete flag
+
       if (!res.ok) {
         await fetch("/api/admin/misc?resource=coupons", {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ id: c.id, delete: true, action: "delete" }),
+          body: JSON.stringify({ id: c.id, delete: true }),
         });
       }
       load();
@@ -138,6 +135,20 @@ export default function CouponsPage() {
       load();
     } catch (err) {
       console.error(err);
+    }
+  };
+
+  // কুইক হিডেন/পাবলিক টগল বাটন
+  const handleToggleHidden = async (c: C) => {
+    try {
+      await fetch("/api/admin/misc?resource=coupons", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: c.id, isHidden: !c.isHidden }),
+      });
+      load();
+    } catch (err) {
+      console.error("Failed to toggle visibility", err);
     }
   };
 
@@ -191,10 +202,15 @@ export default function CouponsPage() {
             onChange={(e) => setIsHidden(e.target.checked)}
             className="h-4 w-4 rounded border-gray-300 text-rosewood-800 focus:ring-rosewood-800"
           />
-          <span>Hidden Coupon? <span className="text-xs text-stone-500 font-normal">(ওয়েবসাইটে পাবলিকলি দেখাবে না, শুধু কোড দিলে কাস্টমার ব্যবহার করতে পারবে)</span></span>
+          <span>
+            Hidden Coupon?{" "}
+            <span className="text-xs text-stone-500 font-normal">
+              (ওয়েবসাইটে পাবলিকলি দেখাবে না, শুধু কোড দিলে কাস্টমার ব্যবহার করতে পারবে)
+            </span>
+          </span>
         </label>
 
-        <button disabled={busy} className="sm:col-span-2 flex min-h-[52px] items-center justify-center gap-2 rounded-full bg-rosewood-800 font-bold text-white disabled:opacity-50">
+        <button disabled={busy} className="sm:col-span-2 flex min-h-[52px] items-center justify-center gap-2 rounded-full bg-rosewood-800 font-bold text-white disabled:opacity-50 hover:bg-rosewood-900 transition">
           {busy ? (
             <Loader2 size={17} className="animate-spin" aria-hidden />
           ) : editingId ? (
@@ -217,20 +233,38 @@ export default function CouponsPage() {
               <span className="min-w-0 flex-1">
                 <span className="flex items-center gap-2">
                   <span className="font-mono font-bold">{c.code}</span>
-                  {c.isHidden && (
-                    <span className="inline-flex items-center rounded-full bg-stone-100 px-2 py-0.5 text-[10px] font-semibold text-stone-600">
-                      Hidden
+                  {c.isHidden ? (
+                    <span className="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700 border border-amber-200">
+                      🔒 Hidden
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 border border-emerald-200">
+                      👁️ Public
                     </span>
                   )}
                 </span>
-                <span className="block text-xs text-ink-500">
+                <span className="block text-xs text-ink-500 mt-0.5">
                   {c.type === "percent" ? `${c.value}%` : formatTaka(c.value)} off · min {formatTaka(c.minSubtotal)}
                   {c.maxDiscount ? ` · cap ${formatTaka(c.maxDiscount)}` : ""} · used {c.usedCount}{c.usageLimit ? `/${c.usageLimit}` : ""}
                 </span>
               </span>
 
+              {/* Quick Toggle Visibility (Public/Hidden) */}
+              <button
+                type="button"
+                aria-label={c.isHidden ? "Make Public" : "Make Hidden"}
+                onClick={() => handleToggleHidden(c)}
+                title={c.isHidden ? "Click to make Public" : "Click to Hide from website"}
+                className={`grid h-10 w-10 place-items-center rounded-full transition ${
+                  c.isHidden ? "bg-amber-100 text-amber-800 hover:bg-amber-200" : "bg-stone-100 text-stone-600 hover:bg-stone-200"
+                }`}
+              >
+                {c.isHidden ? <EyeOff size={17} aria-hidden /> : <Eye size={17} aria-hidden />}
+              </button>
+
               {/* Edit Button */}
               <button
+                type="button"
                 aria-label={`Edit ${c.code}`}
                 onClick={() => handleEditClick(c)}
                 title="Edit Coupon"
@@ -241,8 +275,10 @@ export default function CouponsPage() {
 
               {/* Active Toggle Button */}
               <button
+                type="button"
                 aria-label={c.active ? `Disable ${c.code}` : `Enable ${c.code}`}
                 onClick={() => handleToggleActive(c)}
+                title={c.active ? "Disable Coupon" : "Enable Coupon"}
                 className={`grid h-10 w-10 place-items-center rounded-full ${c.active ? "bg-emerald-100 text-emerald-700" : "bg-stone-200 text-stone-500"}`}
               >
                 <Power size={17} aria-hidden />
@@ -250,8 +286,10 @@ export default function CouponsPage() {
 
               {/* Delete Button */}
               <button
+                type="button"
                 aria-label={`Delete ${c.code}`}
                 onClick={() => handleDelete(c)}
+                title="Delete Coupon"
                 className="grid h-10 w-10 place-items-center rounded-full text-red-600 hover:bg-red-50"
               >
                 <Trash2 size={17} aria-hidden />

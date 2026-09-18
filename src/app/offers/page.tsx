@@ -12,7 +12,7 @@ type Coupon = {
   minSubtotal: number;
   maxDiscount: number | null;
   active: boolean;
-  isHidden?: boolean;
+  isHidden?: boolean | string;
 };
 
 export default function OffersPage() {
@@ -41,10 +41,12 @@ export default function OffersPage() {
     setTimeout(() => setCopiedCode(null), 2000);
   };
 
-  // 🔴 প্রধান ফিক্স: শুধুমাত্র Active এবং non-Hidden (যেগুলো Hidden নয়) কুপন ফিল্টার করা হচ্ছে
-  const visibleCoupons = coupons.filter(
-    (c) => c.active !== false && !c.isHidden
-  );
+  // 🔴 নিখুঁত ফিল্টারিং: শুধুমাত্র নিশ্চিতভাবে true / "true" হলেই হাইড করবে, অন্যথায় শো করবে
+  const visibleCoupons = coupons.filter((c) => {
+    const isActive = c.active !== false;
+    const isHidden = c.isHidden === true || c.isHidden === "true";
+    return isActive && !isHidden;
+  });
 
   return (
     <div className="min-h-[70vh] bg-stone-50/50 py-12 px-4 sm:px-6 lg:px-8">
