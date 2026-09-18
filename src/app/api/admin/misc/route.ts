@@ -5,7 +5,6 @@ import { coupons, deliveryZones, siteSettings, categories, reviews, users } from
 import { eq, sql } from "drizzle-orm";
 import { requireAdmin } from "@/lib/auth";
 
-// Combined lightweight admin endpoints to save routes:
 // GET ?resource=coupons|zones|site|categories|reviews|customers|errors
 export async function GET(req: Request) {
   const admin = await requireAdmin();
@@ -48,8 +47,7 @@ export async function GET(req: Request) {
   }
 }
 
-// POST ?resource=coupons|zones|categories  — create
-// PUT ?resource=site|reviews|coupons|zones — update (body must include id where relevant)
+// POST ?resource=coupons|zones|categories — create
 export async function POST(req: Request) {
   const admin = await requireAdmin();
   if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -66,6 +64,7 @@ export async function POST(req: Request) {
         maxDiscount: z.number().int().min(0).nullable().optional(),
         usageLimit: z.number().int().min(1).nullable().optional(),
         active: z.boolean().default(true),
+        isHidden: z.boolean().optional().default(false),
       }).safeParse(body);
       if (!s.success) return NextResponse.json({ error: "Invalid coupon" }, { status: 400 });
       await db.insert(coupons).values({
@@ -76,6 +75,7 @@ export async function POST(req: Request) {
         maxDiscount: s.data.maxDiscount ?? null,
         usageLimit: s.data.usageLimit ?? null,
         active: s.data.active,
+        isHidden: s.data.isHidden ?? false,
       });
       return NextResponse.json({ ok: true });
     }
@@ -122,6 +122,7 @@ export async function POST(req: Request) {
   }
 }
 
+// PUT ?resource=site|reviews|coupons|zones|categories|customers — update
 export async function PUT(req: Request) {
   const admin = await requireAdmin();
   if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -149,12 +150,24 @@ export async function PUT(req: Request) {
       return NextResponse.json({ ok: true });
     }
     if (r === "coupons" && body.id) {
-      await db.update(coupons).set({
-        active: body.active,
-        ...(body.value != null ? { value: body.value } : {}),
-        ...(body.usageLimit !== undefined ? { usageLimit: body.usageLimit } : {}),
-      }).where(eq(coupons.id, body.id));
-      if (body.delete) await db.delete(coupons).where(eq(coupons.id, body.id));
+      if (body.delete) {
+        await db.delete(coupons).where(eq(coupons.id, body.id));
+        return NextResponse.json({ ok: true });
+      }
+
+      const updateData: Record<string, any> = {};
+      if (body.code !== undefined) updateData.code = body.code.toUpperCase().trim();
+      if (body.type !== undefined) updateData.type = body.type;
+      if (body.value !== undefined) updateData.value = body.value;
+      if (body.minSubtotal !== undefined) updateData.minSubtotal = body.minSubtotal;
+      if (body.maxDiscount !== undefined) updateData.maxDiscount = body.maxDiscount;
+      if (body.usageLimit !== undefined) updateData.usageLimit = body.usageLimit;
+      if (body.active !== undefined) updateData.active = body.active;
+      if (body.isHidden !== undefined) updateData.isHidden = body.isHidden;
+
+      if (Object.keys(updateData).length > 0) {
+        await db.update(coupons).set(updateData).where(eq(coupons.id, body.id));
+      }
       return NextResponse.json({ ok: true });
     }
     if (r === "zones" && body.id) {
@@ -191,5 +204,24 @@ export async function PUT(req: Request) {
   } catch (e) {
     console.error("admin misc put failed", e);
     return NextResponse.json({ error: "Update failed" }, { status: 500 });
+  }
+}
+
+// DELETE ?resource=coupons&id=...
+export async function DELETE(req: Request) {
+  const admin = await requireAdmin();
+  if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const url = new URL(req.url);
+  const r = url.searchParams.get("resource") || "";
+  const id = url.searchParams.get("id");
+  try {
+    if (r === "coupons" && id) {
+      await db.delete(coupons).where(eq(coupons.id, id));
+      return NextResponse.json({ ok: true });
+    }
+    return NextResponse.json({ error: "Unknown resource" }, { status: 400 });
+  } catch (e) {
+    console.error("admin misc delete failed", e);
+    return NextResponse.json({ error: "Delete failed" }, { status: 500 });
   }
 }
