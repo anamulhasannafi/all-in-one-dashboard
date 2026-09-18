@@ -126,11 +126,12 @@ export default function CouponsPage() {
   };
 
   const handleToggleActive = async (c: C) => {
+    const currentActive = c.active !== false;
     try {
       await fetch("/api/admin/misc?resource=coupons", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: c.id, active: !c.active }),
+        body: JSON.stringify({ id: c.id, active: !currentActive }),
       });
       load();
     } catch (err) {
@@ -140,11 +141,12 @@ export default function CouponsPage() {
 
   // কুইক হিডেন/পাবলিক টগল বাটন
   const handleToggleHidden = async (c: C) => {
+    const currentHidden = c.isHidden === true;
     try {
       await fetch("/api/admin/misc?resource=coupons", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: c.id, isHidden: !c.isHidden }),
+        body: JSON.stringify({ id: c.id, isHidden: !currentHidden }),
       });
       load();
     } catch (err) {
@@ -194,6 +196,10 @@ export default function CouponsPage() {
           <input inputMode="numeric" value={min} onChange={(e) => setMin(e.target.value)} className="input-elegant mt-1.5 min-h-12" />
         </label>
 
+        <label className="text-sm font-semibold">Max discount (৳)
+          <input inputMode="numeric" value={max} onChange={(e) => setMax(e.target.value)} placeholder="Optional" className="input-elegant mt-1.5 min-h-12" />
+        </label>
+
         {/* Hidden Coupon Option */}
         <label className="text-sm font-semibold sm:col-span-2 flex items-center gap-2 cursor-pointer mt-1">
           <input
@@ -228,74 +234,79 @@ export default function CouponsPage() {
         <div className="grid place-items-center py-10"><Loader2 className="animate-spin" size={24} aria-hidden /></div>
       ) : (
         <ul className="mt-4 space-y-2.5">
-          {items.map((c) => (
-            <li key={c.id} className="flex items-center gap-2.5 rounded-[18px] bg-white p-4 ring-1 ring-rosewood-100/70">
-              <span className="min-w-0 flex-1">
-                <span className="flex items-center gap-2">
-                  <span className="font-mono font-bold">{c.code}</span>
-                  {c.isHidden ? (
-                    <span className="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700 border border-amber-200">
-                      🔒 Hidden
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 border border-emerald-200">
-                      👁️ Public
-                    </span>
-                  )}
+          {items.map((c) => {
+            const isHiddenCoupon = c.isHidden === true;
+            const isActiveCoupon = c.active !== false;
+
+            return (
+              <li key={c.id} className="flex items-center gap-2.5 rounded-[18px] bg-white p-4 ring-1 ring-rosewood-100/70">
+                <span className="min-w-0 flex-1">
+                  <span className="flex items-center gap-2">
+                    <span className="font-mono font-bold">{c.code}</span>
+                    {isHiddenCoupon ? (
+                      <span className="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700 border border-amber-200">
+                        🔒 Hidden
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 border border-emerald-200">
+                        👁️ Public
+                      </span>
+                    )}
+                  </span>
+                  <span className="block text-xs text-ink-500 mt-0.5">
+                    {c.type === "percent" ? `${c.value}%` : formatTaka(c.value)} off · min {formatTaka(c.minSubtotal)}
+                    {c.maxDiscount ? ` · cap ${formatTaka(c.maxDiscount)}` : ""} · used {c.usedCount}{c.usageLimit ? `/${c.usageLimit}` : ""}
+                  </span>
                 </span>
-                <span className="block text-xs text-ink-500 mt-0.5">
-                  {c.type === "percent" ? `${c.value}%` : formatTaka(c.value)} off · min {formatTaka(c.minSubtotal)}
-                  {c.maxDiscount ? ` · cap ${formatTaka(c.maxDiscount)}` : ""} · used {c.usedCount}{c.usageLimit ? `/${c.usageLimit}` : ""}
-                </span>
-              </span>
 
-              {/* Quick Toggle Visibility (Public/Hidden) */}
-              <button
-                type="button"
-                aria-label={c.isHidden ? "Make Public" : "Make Hidden"}
-                onClick={() => handleToggleHidden(c)}
-                title={c.isHidden ? "Click to make Public" : "Click to Hide from website"}
-                className={`grid h-10 w-10 place-items-center rounded-full transition ${
-                  c.isHidden ? "bg-amber-100 text-amber-800 hover:bg-amber-200" : "bg-stone-100 text-stone-600 hover:bg-stone-200"
-                }`}
-              >
-                {c.isHidden ? <EyeOff size={17} aria-hidden /> : <Eye size={17} aria-hidden />}
-              </button>
+                {/* Quick Toggle Visibility (Public/Hidden) */}
+                <button
+                  type="button"
+                  aria-label={isHiddenCoupon ? "Make Public" : "Make Hidden"}
+                  onClick={() => handleToggleHidden(c)}
+                  title={isHiddenCoupon ? "Click to make Public" : "Click to Hide from website"}
+                  className={`grid h-10 w-10 place-items-center rounded-full transition ${
+                    isHiddenCoupon ? "bg-amber-100 text-amber-800 hover:bg-amber-200" : "bg-stone-100 text-stone-600 hover:bg-stone-200"
+                  }`}
+                >
+                  {isHiddenCoupon ? <EyeOff size={17} aria-hidden /> : <Eye size={17} aria-hidden />}
+                </button>
 
-              {/* Edit Button */}
-              <button
-                type="button"
-                aria-label={`Edit ${c.code}`}
-                onClick={() => handleEditClick(c)}
-                title="Edit Coupon"
-                className="grid h-10 w-10 place-items-center rounded-full text-stone-600 hover:bg-stone-100 font-bold"
-              >
-                ✏️
-              </button>
+                {/* Edit Button */}
+                <button
+                  type="button"
+                  aria-label={`Edit ${c.code}`}
+                  onClick={() => handleEditClick(c)}
+                  title="Edit Coupon"
+                  className="grid h-10 w-10 place-items-center rounded-full text-stone-600 hover:bg-stone-100 font-bold"
+                >
+                  ✏️
+                </button>
 
-              {/* Active Toggle Button */}
-              <button
-                type="button"
-                aria-label={c.active ? `Disable ${c.code}` : `Enable ${c.code}`}
-                onClick={() => handleToggleActive(c)}
-                title={c.active ? "Disable Coupon" : "Enable Coupon"}
-                className={`grid h-10 w-10 place-items-center rounded-full ${c.active ? "bg-emerald-100 text-emerald-700" : "bg-stone-200 text-stone-500"}`}
-              >
-                <Power size={17} aria-hidden />
-              </button>
+                {/* Active Toggle Button */}
+                <button
+                  type="button"
+                  aria-label={isActiveCoupon ? `Disable ${c.code}` : `Enable ${c.code}`}
+                  onClick={() => handleToggleActive(c)}
+                  title={isActiveCoupon ? "Disable Coupon" : "Enable Coupon"}
+                  className={`grid h-10 w-10 place-items-center rounded-full ${isActiveCoupon ? "bg-emerald-100 text-emerald-700" : "bg-stone-200 text-stone-500"}`}
+                >
+                  <Power size={17} aria-hidden />
+                </button>
 
-              {/* Delete Button */}
-              <button
-                type="button"
-                aria-label={`Delete ${c.code}`}
-                onClick={() => handleDelete(c)}
-                title="Delete Coupon"
-                className="grid h-10 w-10 place-items-center rounded-full text-red-600 hover:bg-red-50"
-              >
-                <Trash2 size={17} aria-hidden />
-              </button>
-            </li>
-          ))}
+                {/* Delete Button */}
+                <button
+                  type="button"
+                  aria-label={`Delete ${c.code}`}
+                  onClick={() => handleDelete(c)}
+                  title="Delete Coupon"
+                  className="grid h-10 w-10 place-items-center rounded-full text-red-600 hover:bg-red-50"
+                >
+                  <Trash2 size={17} aria-hidden />
+                </button>
+              </li>
+            );
+          })}
         </ul>
       )}
     </div>
