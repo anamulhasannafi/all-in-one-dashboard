@@ -273,3 +273,37 @@ main p,
   word-break: break-word !important;
   line-height: 1.6 !important;
 }
+
+/* =========================================================
+   ৩. Sold Out Overlay Upgrade (Full Image Gradient & Centered Badge)
+   ========================================================= */
+
+[class*="sold-out"],
+[class*="soldOut"],
+[class*="stock-out"],
+[class*="sold_out"] {
+  position: absolute !important;
+  inset: 0 !important;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.25) 0%, rgba(0, 0, 0, 0.7) 100%) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  backdrop-filter: blur(1px) !important;
+  z-index: 10 !important;
+}
+
+[class*="sold-out"] *,
+[class*="soldOut"] *,
+[class*="stock-out"] *,
+[class*="sold_out"] * {
+  background: rgba(0, 0, 0, 0.8) !important;
+  color: #ffffff !important;
+  font-weight: 700 !important;
+  font-size: 0.75rem !important;
+  letter-spacing: 0.15em !important;
+  padding: 8px 18px !important;
+  border-radius: 9999px !important;
+  border: 1px solid rgba(255, 255, 255, 0.35) !important;
+  box-shadow: 0 0 15px rgba(0, 0, 0, 0.6), 0 0 6px rgba(255, 255, 255, 0.25) !important;
+  text-transform: uppercase !important;
+}
