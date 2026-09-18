@@ -5,13 +5,13 @@ import { useEffect, useRef, useState } from "react";
 import { ArrowRight, Play, Pause } from "./icons";
 
 export type HeroItem = {
-  heroType: "image" | "video";
+  heroType?: "image" | "video" | "slideshow" | string | null;
   videoUrl?: string | null;
   mobileVideoUrl?: string | null;
   imageUrl?: string | null;
   mobileImageUrl?: string | null;
   posterUrl?: string | null;
-  mobilePosterUrl?: string | null; // <--- টাইপ অ্যারর ফিক্স করা হয়েছে
+  mobilePosterUrl?: string | null;
   badgeText?: string | null;
   headline?: string | null;
   subheadline?: string | null;
@@ -22,12 +22,11 @@ export type HeroItem = {
 };
 
 export type HeroData = HeroItem & {
-  heroType: "image" | "video" | "slideshow";
   slides?: HeroItem[];
   overlayOpacity?: number;
   animation?: string;
   enabled?: boolean;
-  intervalDuration?: number; // স্লাইড পরিবর্তনের সময় (milliseconds)
+  intervalDuration?: number;
 };
 
 export default function HeroVideo({ hero }: { hero: HeroData | null }) {
@@ -46,12 +45,12 @@ export default function HeroVideo({ hero }: { hero: HeroData | null }) {
   }, []);
 
   // ২. স্লাইডশো / কন্টিনিউয়াস রোটেশন লজিক
-  const isSlideshow = hero?.heroType === "slideshow" && hero?.slides && hero.slides.length > 0;
-  const currentMedia: HeroItem = isSlideshow ? hero.slides![activeSlideIndex] : hero!;
+  const isSlideshow = hero?.heroType === "slideshow" && Boolean(hero?.slides && hero.slides.length > 0);
+  const currentMedia: HeroItem = isSlideshow ? hero!.slides![activeSlideIndex] : hero!;
 
   useEffect(() => {
     if (!isSlideshow || !hero?.slides?.length) return;
-    const duration = hero.intervalDuration || 6000; // ডিফল্ট ৬ সেকেন্ড পর পর চেঞ্জ হবে
+    const duration = hero.intervalDuration || 6000;
     const timer = setInterval(() => {
       setActiveSlideIndex((prev) => (prev + 1) % hero.slides!.length);
     }, duration);
@@ -66,23 +65,23 @@ export default function HeroVideo({ hero }: { hero: HeroData | null }) {
     v.play().catch(() => {
       // Autoplay fallback
     });
-  }, [currentMedia.videoUrl, currentMedia.mobileVideoUrl, activeSlideIndex]);
+  }, [currentMedia?.videoUrl, currentMedia?.mobileVideoUrl, activeSlideIndex]);
 
   if (!hero || hero.enabled === false) return null;
 
   // মিডিয়া টাইপ লজিক নির্ধারণ
-  const isVideo = currentMedia.heroType === "video";
+  const isVideo = currentMedia?.heroType === "video";
   const videoSrc = isMobile
-    ? currentMedia.mobileVideoUrl || currentMedia.videoUrl
-    : currentMedia.videoUrl || currentMedia.mobileVideoUrl;
+    ? currentMedia?.mobileVideoUrl || currentMedia?.videoUrl
+    : currentMedia?.videoUrl || currentMedia?.mobileVideoUrl;
 
   const imageSrc = isMobile
-    ? currentMedia.mobileImageUrl || currentMedia.mobilePosterUrl || currentMedia.imageUrl || currentMedia.posterUrl
-    : currentMedia.imageUrl || currentMedia.posterUrl || currentMedia.mobileImageUrl;
+    ? currentMedia?.mobileImageUrl || currentMedia?.mobilePosterUrl || currentMedia?.imageUrl || currentMedia?.posterUrl
+    : currentMedia?.imageUrl || currentMedia?.posterUrl || currentMedia?.mobileImageUrl;
 
   const posterSrc = isMobile
-    ? currentMedia.mobilePosterUrl || currentMedia.posterUrl || imageSrc
-    : currentMedia.posterUrl || currentMedia.mobilePosterUrl || imageSrc;
+    ? currentMedia?.mobilePosterUrl || currentMedia?.posterUrl || imageSrc
+    : currentMedia?.posterUrl || currentMedia?.mobilePosterUrl || imageSrc;
 
   const overlay = Math.min(90, Math.max(0, hero.overlayOpacity ?? 45));
 
@@ -125,7 +124,7 @@ export default function HeroVideo({ hero }: { hero: HeroData | null }) {
             <div className="absolute inset-0 bg-gradient-to-br from-rosewood-800 via-rosewood-950 to-ink-900" />
           )}
 
-          {/* ডার্ক ওভারলে (পড়ার সুবিধার জন্য) */}
+          {/* ডার্ক ওভারলে */}
           <div
             className="absolute inset-0 transition-opacity duration-300"
             style={{
@@ -138,21 +137,21 @@ export default function HeroVideo({ hero }: { hero: HeroData | null }) {
           <div className="absolute inset-0 flex items-end sm:items-center">
             <div className="mx-auto w-full max-w-7xl px-5 sm:px-8 pb-16 sm:pb-0 pt-24">
               <div className="max-w-xl">
-                {currentMedia.badgeText ? (
+                {currentMedia?.badgeText ? (
                   <p className="inline-flex items-center gap-2.5 rounded-full border border-white/25 bg-white/10 backdrop-blur-md px-4 py-2 text-[11px] sm:text-xs font-semibold uppercase tracking-[0.22em] text-cream-50">
                     <span className="h-1.5 w-1.5 rounded-full bg-gold-400" aria-hidden />
                     {currentMedia.badgeText}
                   </p>
                 ) : null}
                 <h1 className="font-display mt-5 text-cream-50 text-[42px] leading-[1.02] sm:text-6xl lg:text-7xl font-medium">
-                  {currentMedia.headline || "Elegance woven for every day"}
+                  {currentMedia?.headline || "Elegance woven for every day"}
                 </h1>
                 <p className="mt-4 text-cream-100/90 text-[15px] sm:text-lg leading-relaxed max-w-md">
-                  {currentMedia.subheadline ||
+                  {currentMedia?.subheadline ||
                     "Sarees, three-pieces & modest wear — crafted in Dhaka, delivered across Bangladesh with cash on delivery."}
                 </p>
                 <div className="mt-7 flex flex-col sm:flex-row gap-3 max-w-md sm:max-w-none">
-                  {currentMedia.primaryCtaText ? (
+                  {currentMedia?.primaryCtaText ? (
                     <Link
                       href={currentMedia.primaryCtaLink || "/shop"}
                       className="btn-sheen inline-flex min-h-[52px] items-center justify-center gap-2 rounded-full bg-cream-50 px-8 text-[15px] font-semibold text-rosewood-950 hover:bg-white active:scale-[0.98] transition shadow-[0_18px_40px_rgba(0,0,0,0.35)]"
@@ -161,7 +160,7 @@ export default function HeroVideo({ hero }: { hero: HeroData | null }) {
                       <ArrowRight size={18} strokeWidth={2} aria-hidden />
                     </Link>
                   ) : null}
-                  {currentMedia.secondaryCtaText ? (
+                  {currentMedia?.secondaryCtaText ? (
                     <Link
                       href={currentMedia.secondaryCtaLink || "/offers"}
                       className="inline-flex min-h-[52px] items-center justify-center gap-2 rounded-full border border-white/40 bg-white/10 backdrop-blur-md px-8 text-[15px] font-semibold text-white hover:bg-white/20 active:scale-[0.98] transition"
@@ -174,7 +173,7 @@ export default function HeroVideo({ hero }: { hero: HeroData | null }) {
             </div>
           </div>
 
-          {/* স্লাইডশো থাকলে নিচের ইন্ডিকেটর/ডট বাটনগুলো দেখাবে */}
+          {/* স্লাইডশো ইন্ডিকেটর */}
           {isSlideshow && hero.slides && hero.slides.length > 1 ? (
             <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2 z-10">
               {hero.slides.map((_, idx) => (
@@ -191,7 +190,7 @@ export default function HeroVideo({ hero }: { hero: HeroData | null }) {
             </div>
           ) : null}
 
-          {/* ভিডিও কন্ট্রোল বাটন (শুধুমাত্র ভিডিও মোডে দেখাবে) */}
+          {/* ভিডিও কন্ট্রোল বাটন */}
           {isVideo && videoSrc ? (
             <div className="absolute bottom-5 right-5 sm:bottom-8 sm:right-8 flex gap-2 z-10">
               <button
