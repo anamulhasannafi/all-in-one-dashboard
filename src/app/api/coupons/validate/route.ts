@@ -5,7 +5,26 @@ import { coupons } from "@/db/schema";
 import { eq } from "drizzle-orm";
 
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
+// ১. অফার পেজের জন্য কুপন লিস্ট তুলে আনার GET মেথড
+export async function GET() {
+  try {
+    const allCoupons = await db.select().from(coupons);
+
+    return NextResponse.json(allCoupons, {
+      headers: {
+        "Cache-Control": "no-store, max-age=0, must-revalidate",
+        "Pragma": "no-cache",
+      },
+    });
+  } catch (error) {
+    console.error("GET /api/coupons error:", error);
+    return NextResponse.json({ error: "Failed to fetch coupons", coupons: [] }, { status: 500 });
+  }
+}
+
+// ২. চেকআউট পেজে কুপন ভ্যালিডেট করার POST মেথড
 const schema = z.object({
   code: z.string().trim().min(2),
   subtotal: z.number().min(0),

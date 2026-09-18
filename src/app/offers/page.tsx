@@ -11,7 +11,8 @@ type Coupon = {
   value: number;
   minSubtotal: number;
   maxDiscount: number | null;
-  active: boolean | string | number;
+  active?: boolean | string | number;
+  is_active?: boolean | string | number;
   isHidden?: boolean | string | number;
   is_hidden?: boolean | string | number;
 };
@@ -24,7 +25,6 @@ export default function OffersPage() {
   useEffect(() => {
     async function fetchCoupons() {
       try {
-        // 🔴 টাইমস্ট্যাম্প ও নো-ক্যাশ হেডার ব্যবহার করে ব্রাউজার ক্যাশিং বন্ধ করা হয়েছে
         const res = await fetch(`/api/coupons?t=${Date.now()}`, {
           cache: "no-store",
           headers: {
@@ -33,8 +33,22 @@ export default function OffersPage() {
           },
         });
         const data = await res.json();
-        const items = Array.isArray(data) ? data : data.items || [];
-        setCoupons(items);
+        
+        // কনসোলে ডাটা দেখার জন্য
+        console.log("Fetched Coupons:", data);
+
+        let list: Coupon[] = [];
+        if (Array.isArray(data)) {
+          list = data;
+        } else if (Array.isArray(data.coupons)) {
+          list = data.coupons;
+        } else if (Array.isArray(data.items)) {
+          list = data.items;
+        } else if (Array.isArray(data.data)) {
+          list = data.data;
+        }
+
+        setCoupons(list);
       } catch (error) {
         console.error("Error loading coupons:", error);
       } finally {
@@ -50,10 +64,11 @@ export default function OffersPage() {
     setTimeout(() => setCopiedCode(null), 2000);
   };
 
-  // 🔴 সেফ ফিল্টারিং: শুধুমাত্র Active এবং Public (যেগুলো Hidden করা হয়নি) কুপনগুলো শো করবে
+  // শুধুমাত্র নিশ্চিতভাবে Hidden হওয়া কুপনগুলো বাদ যাবে
   const visibleCoupons = coupons.filter((c) => {
-    const isActive = c.active !== false && c.active !== "false" && c.active !== 0;
-    
+    const activeVal = c.active ?? c.is_active;
+    const isActive = activeVal !== false && activeVal !== "false" && activeVal !== 0;
+
     const rawHidden = c.isHidden ?? c.is_hidden;
     const isHidden = rawHidden === true || rawHidden === "true" || rawHidden === 1;
 
