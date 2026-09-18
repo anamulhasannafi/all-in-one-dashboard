@@ -11,8 +11,9 @@ type Coupon = {
   value: number;
   minSubtotal: number;
   maxDiscount: number | null;
-  active: boolean;
-  isHidden?: boolean | string;
+  active: boolean | string | number;
+  isHidden?: boolean | string | number;
+  is_hidden?: boolean | string | number;
 };
 
 export default function OffersPage() {
@@ -23,9 +24,17 @@ export default function OffersPage() {
   useEffect(() => {
     async function fetchCoupons() {
       try {
-        const res = await fetch("/api/coupons");
+        // 🔴 টাইমস্ট্যাম্প ও নো-ক্যাশ হেডার ব্যবহার করে ব্রাউজার ক্যাশিং বন্ধ করা হয়েছে
+        const res = await fetch(`/api/coupons?t=${Date.now()}`, {
+          cache: "no-store",
+          headers: {
+            "Pragma": "no-cache",
+            "Cache-Control": "no-cache",
+          },
+        });
         const data = await res.json();
-        setCoupons(data.items || data || []);
+        const items = Array.isArray(data) ? data : data.items || [];
+        setCoupons(items);
       } catch (error) {
         console.error("Error loading coupons:", error);
       } finally {
@@ -41,10 +50,13 @@ export default function OffersPage() {
     setTimeout(() => setCopiedCode(null), 2000);
   };
 
-  // 🔴 নিখুঁত ফিল্টারিং: শুধুমাত্র নিশ্চিতভাবে true / "true" হলেই হাইড করবে, অন্যথায় শো করবে
+  // 🔴 সেফ ফিল্টারিং: শুধুমাত্র Active এবং Public (যেগুলো Hidden করা হয়নি) কুপনগুলো শো করবে
   const visibleCoupons = coupons.filter((c) => {
-    const isActive = c.active !== false;
-    const isHidden = c.isHidden === true || c.isHidden === "true";
+    const isActive = c.active !== false && c.active !== "false" && c.active !== 0;
+    
+    const rawHidden = c.isHidden ?? c.is_hidden;
+    const isHidden = rawHidden === true || rawHidden === "true" || rawHidden === 1;
+
     return isActive && !isHidden;
   });
 
@@ -89,7 +101,7 @@ export default function OffersPage() {
                 </h3>
 
                 <p className="text-xs text-stone-300 mb-5">
-                  Min order {formatTaka(c.minSubtotal)}
+                  Min order {formatTaka(c.minSubtotal || 0)}
                   {c.maxDiscount ? ` · Max discount ${formatTaka(c.maxDiscount)}` : ""}
                 </p>
 
