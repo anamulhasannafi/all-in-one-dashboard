@@ -1,71 +1,21 @@
-"use client";
-
-import { useEffect, useState } from "react";
+import { db } from "@/db";
+import { coupons } from "@/db/schema";
 import { formatTaka } from "@/lib/format";
-import { Loader2 } from "@/components/icons";
+import CopyButton from "./copy-coupon";
 
-type Coupon = {
-  id: string;
-  code: string;
-  type: string;
-  value: number;
-  minSubtotal: number;
-  maxDiscount: number | null;
-  active?: boolean | string | number;
-  is_active?: boolean | string | number;
-  isHidden?: boolean | string | number;
-  is_hidden?: boolean | string | number;
-};
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
-export default function OffersPage() {
-  const [coupons, setCoupons] = useState<Coupon[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [copiedCode, setCopiedCode] = useState<string | null>(null);
+export default async function OffersPage() {
+  let list: any[] = [];
+  try {
+    list = await db.select().from(coupons);
+  } catch (error) {
+    console.error("Error loading coupons from DB:", error);
+  }
 
-  useEffect(() => {
-    async function fetchCoupons() {
-      try {
-        const res = await fetch(`/api/coupons?t=${Date.now()}`, {
-          cache: "no-store",
-          headers: {
-            "Pragma": "no-cache",
-            "Cache-Control": "no-cache",
-          },
-        });
-        const data = await res.json();
-        
-        // কনসোলে ডাটা দেখার জন্য
-        console.log("Fetched Coupons:", data);
-
-        let list: Coupon[] = [];
-        if (Array.isArray(data)) {
-          list = data;
-        } else if (Array.isArray(data.coupons)) {
-          list = data.coupons;
-        } else if (Array.isArray(data.items)) {
-          list = data.items;
-        } else if (Array.isArray(data.data)) {
-          list = data.data;
-        }
-
-        setCoupons(list);
-      } catch (error) {
-        console.error("Error loading coupons:", error);
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchCoupons();
-  }, []);
-
-  const handleCopy = (code: string) => {
-    navigator.clipboard.writeText(code);
-    setCopiedCode(code);
-    setTimeout(() => setCopiedCode(null), 2000);
-  };
-
-  // শুধুমাত্র নিশ্চিতভাবে Hidden হওয়া কুপনগুলো বাদ যাবে
-  const visibleCoupons = coupons.filter((c) => {
+  // শুধুমাত্র active এবং non-hidden কুপনগুলো ফিল্টার করা
+  const visibleCoupons = list.filter((c) => {
     const activeVal = c.active ?? c.is_active;
     const isActive = activeVal !== false && activeVal !== "false" && activeVal !== 0;
 
@@ -88,11 +38,7 @@ export default function OffersPage() {
           Apply codes at checkout. One coupon per order.
         </p>
 
-        {loading ? (
-          <div className="flex justify-center py-12">
-            <Loader2 className="animate-spin text-rosewood-800" size={32} />
-          </div>
-        ) : visibleCoupons.length === 0 ? (
+        {visibleCoupons.length === 0 ? (
           <div className="bg-white rounded-2xl p-8 border border-rosewood-100 max-w-md mx-auto shadow-sm">
             <p className="text-stone-500 font-medium text-sm">
               No public coupons available at the moment.
@@ -120,12 +66,7 @@ export default function OffersPage() {
                   {c.maxDiscount ? ` · Max discount ${formatTaka(c.maxDiscount)}` : ""}
                 </p>
 
-                <button
-                  onClick={() => handleCopy(c.code)}
-                  className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 active:scale-95 transition backdrop-blur-md text-xs font-semibold text-white border border-white/20"
-                >
-                  {copiedCode === c.code ? "Copied!" : "Copy Code"}
-                </button>
+                <CopyButton code={c.code} />
               </div>
             ))}
           </div>
