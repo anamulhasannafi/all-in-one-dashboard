@@ -11,6 +11,7 @@ export type HeroItem = {
   imageUrl?: string | null;
   mobileImageUrl?: string | null;
   posterUrl?: string | null;
+  mobilePosterUrl?: string | null; // <--- টাইপ অ্যারর ফিক্স করা হয়েছে
   badgeText?: string | null;
   headline?: string | null;
   subheadline?: string | null;
@@ -76,8 +77,12 @@ export default function HeroVideo({ hero }: { hero: HeroData | null }) {
     : currentMedia.videoUrl || currentMedia.mobileVideoUrl;
 
   const imageSrc = isMobile
-    ? currentMedia.mobileImageUrl || currentMedia.imageUrl || currentMedia.posterUrl
-    : currentMedia.imageUrl || currentMedia.mobileImageUrl || currentMedia.posterUrl;
+    ? currentMedia.mobileImageUrl || currentMedia.mobilePosterUrl || currentMedia.imageUrl || currentMedia.posterUrl
+    : currentMedia.imageUrl || currentMedia.posterUrl || currentMedia.mobileImageUrl;
+
+  const posterSrc = isMobile
+    ? currentMedia.mobilePosterUrl || currentMedia.posterUrl || imageSrc
+    : currentMedia.posterUrl || currentMedia.mobilePosterUrl || imageSrc;
 
   const overlay = Math.min(90, Math.max(0, hero.overlayOpacity ?? 45));
 
@@ -97,7 +102,7 @@ export default function HeroVideo({ hero }: { hero: HeroData | null }) {
               loop
               playsInline
               preload="auto"
-              poster={imageSrc ?? undefined}
+              poster={posterSrc ?? undefined}
               aria-hidden
               disablePictureInPicture
             >
