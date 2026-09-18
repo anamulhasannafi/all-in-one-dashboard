@@ -44,7 +44,7 @@ export default function ProductCard({ p, priority }: { p: CardProduct; priority?
             S
           </span>
         )}
-        <span className="absolute left-2.5 top-2.5 flex flex-col gap-1.5">
+        <span className="absolute left-2.5 top-2.5 z-20 flex flex-col gap-1.5">
           {pct > 0 && (
             <span className="rounded-full bg-rosewood-700 px-2.5 py-1 text-[11px] font-bold text-white shadow">
               -{pct}%
@@ -61,13 +61,17 @@ export default function ProductCard({ p, priority }: { p: CardProduct; priority?
             </span>
           ) : null}
         </span>
+
+        {/* স্টক আউট ওভারলে (ফুল ইমেজ ডার্ক গ্রেডিয়েন্ট ও মাঝখানে প্রফেশনাল ব্যাজ) */}
         {p.stockOut ? (
-          <span className="absolute inset-x-0 bottom-0 bg-ink-900/70 py-2 text-center text-xs font-semibold uppercase tracking-widest text-cream-50 backdrop-blur">
-            Sold out
-          </span>
+          <div className="absolute inset-0 z-10 flex items-center justify-center bg-gradient-to-t from-black/80 via-black/40 to-black/20 backdrop-blur-[1px]">
+            <span className="rounded-full border border-white/40 bg-black/80 px-4 py-1.5 text-xs font-bold uppercase tracking-widest text-white shadow-2xl backdrop-blur-md">
+              Sold out
+            </span>
+          </div>
         ) : null}
       </Link>
-      <div className="absolute right-2.5 top-2.5">
+      <div className="absolute right-2.5 top-2.5 z-20">
         <WishlistButton productId={p.id} compact />
       </div>
       <div className="flex flex-1 flex-col gap-1 p-3 sm:p-4">
