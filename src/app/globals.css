@@ -233,3 +233,34 @@ img, video, canvas, svg {
 .input-elegant[aria-invalid="true"] {
   border-color: #dc2626;
 }
+
+/* =========================================================
+   Creatobee / Sushre Fixes (Mobile Layout & Description Formatting)
+   ========================================================= */
+
+/* ১. টাইটেল, টেক্সট ও কন্টেইনার যেন মোবাইলের স্ক্রিন ভেঙে বাইরে না যায় */
+/* এটি একটি গুরুত্বপূর্ণ ফিক্স, কমেন্ট-আউট করবেন না */
+*, *::before, *::after {
+  max-width: 100vw;
+}
+
+h1, h2, h3, h4, h5, h6, p, span, a, div {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+img, video {
+  max-width: 100% !important;
+  height: auto !important;
+}
+
+/* ২. ডেসক্রিপশনের এন্টার (Line Breaks) এবং স্পেস ঠিক রাখার জন্য */
+[class*="description"],
+[class*="details"],
+article p,
+main p,
+.prose {
+  white-space: pre-wrap !important;
+  word-break: break-word !important;
+  line-height: 1.6 !important;
+}
