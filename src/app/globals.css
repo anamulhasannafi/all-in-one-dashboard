@@ -235,35 +235,10 @@ img, video, canvas, svg {
 }
 
 /* =========================================================
-   Product Page & Mobile Layout Strict Fixes
+   Responsive Layout & Formatting Fixes (Desktop + Mobile Safe)
    ========================================================= */
 
-/* ১. স্ক্রিনের ডানে অতিরিক্ত জায়গা এবং হরিজন্টাল স্ক্রল লক করা */
-html, body {
-  overflow-x: hidden !important;
-  width: 100% !important;
-  max-width: 100vw !important;
-}
-
-/* ফ্লেক্সবক্স ওভারফ্লো ফিক্স (Flexbox Child Overflow Fix) */
-main, section, div, article, form {
-  max-width: 100% !important;
-  min-width: 0 !important;
-}
-
-/* বড় টাইটেল বা টেক্সট যেন স্ক্রিনের বাইরে না যায় */
-h1, h2, h3, h4, h5, h6, p, span, a, label {
-  overflow-wrap: anywhere !important;
-  word-break: break-word !important;
-}
-
-/* প্রোডাক্টের সব ইমেজ ও স্লাইডার রেসপন্সিভ করা */
-img, video, svg, canvas {
-  max-width: 100% !important;
-  height: auto !important;
-}
-
-/* ২. ডেসক্রিপশনের স্পেস ও প্যারাগ্রাফ ফরম্যাটিং */
+/* ১. ডেসক্রিপশনের স্পেস ও প্যারাগ্রাফ ফরম্যাটিং (সব ডিভাইসের জন্য) */
 [class*="description"],
 [class*="details"],
 article p,
@@ -272,6 +247,30 @@ main p,
   white-space: pre-wrap !important;
   word-break: break-word !important;
   line-height: 1.6 !important;
+}
+
+/* ২. বড় টেক্সট যেন ভেঙে বাইরে না যায় */
+h1, h2, h3, h4, h5, h6, p, span, a, label {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+/* ৩. শুধুমাত্র মোবাইল স্ক্রিনের জন্য লেআউট ও ওভারফ্লো ফিক্স (Desktop সম্পূর্ণ নিরাপদ) */
+@media (max-width: 767px) {
+  html, body {
+    overflow-x: hidden;
+    width: 100%;
+    max-width: 100vw;
+  }
+
+  main, section, div, article, form {
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  img, video, svg, canvas {
+    max-width: 100%;
+  }
 }
 
 /* =========================================================
