@@ -160,6 +160,7 @@ export const coupons = pgTable(
     usageLimit: integer("usage_limit"),
     usedCount: integer("used_count").default(0).notNull(),
     active: boolean("active").default(true).notNull(),
+    isHidden: boolean("is_hidden").default(false),
     expiresAt: timestamp("expires_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
