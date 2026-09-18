@@ -1,51 +1,117 @@
-import { db } from "@/db";
-import { coupons } from "@/db/schema";
-import { eq, sql } from "drizzle-orm";
-import Reveal from "@/components/Reveal";
-import CopyCoupon from "./copy-coupon";
-import { TicketPercent } from "@/components/icons";
+"use client";
+
+import { useEffect, useState } from "react";
 import { formatTaka } from "@/lib/format";
+import { Loader2 } from "@/components/icons";
 
-export const dynamic = "force-dynamic";
-export const metadata = { title: "Offers & Coupons" };
+type Coupon = {
+  id: string;
+  code: string;
+  type: string;
+  value: number;
+  minSubtotal: number;
+  maxDiscount: number | null;
+  active: boolean;
+  isHidden?: boolean;
+};
 
-export default async function OffersPage() {
-  let list: typeof coupons.$inferSelect[] = [];
-  try {
-    list = await db.select().from(coupons).where(eq(coupons.active, true)).orderBy(coupons.createdAt);
-  } catch {}
+export default function OffersPage() {
+  const [coupons, setCoupons] = useState<Coupon[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [copiedCode, setCopiedCode] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function fetchCoupons() {
+      try {
+        const res = await fetch("/api/coupons");
+        const data = await res.json();
+        setCoupons(data.items || data || []);
+      } catch (error) {
+        console.error("Error loading coupons:", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchCoupons();
+  }, []);
+
+  const handleCopy = (code: string) => {
+    navigator.clipboard.writeText(code);
+    setCopiedCode(code);
+    setTimeout(() => setCopiedCode(null), 2000);
+  };
+
+  // 🔴 প্রধান ফিক্স: শুধুমাত্র Active এবং non-Hidden (যেগুলো Hidden নয়) কুপন ফিল্টার করা হচ্ছে
+  const visibleCoupons = coupons.filter(
+    (c) => c.active !== false && !c.isHidden
+  );
+
   return (
-    <div className="mx-auto max-w-4xl px-4 sm:px-6 py-8 sm:py-12">
-      <p className="text-xs font-semibold uppercase tracking-[0.24em] text-rosewood-600 text-center">Save more</p>
-      <h1 className="font-display text-3xl sm:text-5xl text-rosewood-950 mt-1 text-center">Offers & Coupons</h1>
-      <p className="mt-2 text-center text-sm text-ink-500">Apply codes at checkout. One coupon per order.</p>
-      <div className="mt-8 grid gap-4 sm:grid-cols-2">
-        {list.map((c, i) => (
-          <Reveal key={c.id} delay={(i % 2) * 80}>
-            <div className="relative overflow-hidden rounded-[22px] bg-gradient-to-br from-rosewood-800 to-rosewood-950 p-6 text-cream-50">
-              <div className="absolute -right-8 -top-8 h-32 w-32 rounded-full bg-gold-500/25 blur-2xl" aria-hidden />
-              <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.2em] text-gold-300">
-                <TicketPercent size={16} aria-hidden /> {c.type === "percent" ? `${c.value}% OFF` : `${formatTaka(c.value)} OFF`}
-              </p>
-              <p className="font-mono mt-2 text-3xl font-bold tracking-widest">{c.code}</p>
-              <p className="mt-1.5 text-sm text-cream-100/80">
-                Min order {formatTaka(c.minSubtotal)}{c.maxDiscount ? ` · Max discount ${formatTaka(c.maxDiscount)}` : ""}
-              </p>
-              <CopyCoupon code={c.code} />
-            </div>
-          </Reveal>
-        ))}
-        {list.length === 0 && (
-          <p className="col-span-2 rounded-2xl bg-white p-8 text-center text-ink-500 ring-1 ring-rosewood-100/70">No active coupons right now — check back during festive sales.</p>
+    <div className="min-h-[70vh] bg-stone-50/50 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-4xl mx-auto text-center">
+        <p className="text-xs uppercase tracking-[0.25em] text-rosewood-700 font-semibold mb-2">
+          Save More
+        </p>
+        <h1 className="font-display text-4xl sm:text-5xl text-rosewood-950 mb-3">
+          Offers & Coupons
+        </h1>
+        <p className="text-stone-600 text-sm sm:text-base max-w-md mx-auto mb-10">
+          Apply codes at checkout. One coupon per order.
+        </p>
+
+        {loading ? (
+          <div className="flex justify-center py-12">
+            <Loader2 className="animate-spin text-rosewood-800" size={32} />
+          </div>
+        ) : visibleCoupons.length === 0 ? (
+          <div className="bg-white rounded-2xl p-8 border border-rosewood-100 max-w-md mx-auto shadow-sm">
+            <p className="text-stone-500 font-medium text-sm">
+              No public coupons available at the moment.
+            </p>
+          </div>
+        ) : (
+          <div className="grid gap-6 sm:grid-cols-2 max-w-2xl mx-auto">
+            {visibleCoupons.map((c) => (
+              <div
+                key={c.id || c.code}
+                className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-rosewood-900 to-rosewood-950 text-white p-6 shadow-xl text-left border border-white/10"
+              >
+                <div className="flex items-center justify-between mb-4">
+                  <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider bg-gold-400/20 text-gold-300 border border-gold-400/30">
+                    {c.type === "percent" ? `${c.value}% OFF` : `${formatTaka(c.value)} OFF`}
+                  </span>
+                </div>
+
+                <h3 className="font-mono text-2xl font-bold tracking-wider mb-2">
+                  {c.code}
+                </h3>
+
+                <p className="text-xs text-stone-300 mb-5">
+                  Min order {formatTaka(c.minSubtotal)}
+                  {c.maxDiscount ? ` · Max discount ${formatTaka(c.maxDiscount)}` : ""}
+                </p>
+
+                <button
+                  onClick={() => handleCopy(c.code)}
+                  className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 active:scale-95 transition backdrop-blur-md text-xs font-semibold text-white border border-white/20"
+                >
+                  {copiedCode === c.code ? "Copied!" : "Copy Code"}
+                </button>
+              </div>
+            ))}
+          </div>
         )}
-      </div>
-      <div className="mt-8 rounded-[22px] bg-white p-6 ring-1 ring-rosewood-100/70 text-sm text-ink-700 leading-relaxed">
-        <h2 className="font-display text-xl text-rosewood-950">How to use</h2>
-        <ol className="mt-2 list-decimal pl-5 space-y-1.5">
-          <li>Add your favourite pieces to the bag.</li>
-          <li>Go to checkout and enter the code in the coupon box.</li>
-          <li>Tap Apply — your discount appears instantly in the summary.</li>
-        </ol>
+
+        <div className="mt-12 bg-white rounded-2xl p-6 border border-rosewood-100 max-w-2xl mx-auto text-left shadow-sm">
+          <h4 className="font-display text-base font-semibold text-rosewood-950 mb-3">
+            How to use
+          </h4>
+          <ol className="space-y-2 text-xs sm:text-sm text-stone-600 list-decimal list-inside">
+            <li>Add your favourite pieces to the bag.</li>
+            <li>Go to checkout and enter the code in the coupon box.</li>
+            <li>Tap Apply — your discount appears instantly in the summary.</li>
+          </ol>
+        </div>
       </div>
     </div>
   );
